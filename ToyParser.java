@@ -246,6 +246,19 @@ public class ToyParser {
 
     }
 
+    public void parseArguments(){
+        parseArgument();
+        parseArgumentsPrime();
+    }
+
+    public void parseArgumentsPrime(){
+        switch (currentToken.type){
+        }
+    }
+
+    public void parseArgument(){
+        parseExpression();
+    }
     // Expressions
     public void parseExpression(){
         parseDisjunction();
@@ -509,7 +522,26 @@ public class ToyParser {
     }
 
     public void parseFactorSuffix(){
-
+        switch (currentToken.type){
+            case OPEN_PAREN:
+                advanceToNextToken();
+                if(currentToken.type.equals(Tokens.CLOSE_PAREN)){
+                    advanceToNextToken();
+                }else{
+                    parseArguments();
+                    advanceToNextToken();
+                }
+                break;
+            case OPEN_BRACKET:
+                advanceToNextToken();
+                parseExpression();
+                if(currentToken.type.equals(Tokens.CLOSE_BRACKET)){
+                    advanceToNextToken();
+                }else{
+                    throw new IllegalArgumentException("Expected: ] at " + locationToString(currentToken));
+                }
+                break;
+        }
     }
 
     public void parseName(){

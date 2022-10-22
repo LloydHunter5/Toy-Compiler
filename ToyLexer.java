@@ -1,5 +1,4 @@
 import java.util.Scanner;
-
 public class ToyLexer {
 
     public enum State {
