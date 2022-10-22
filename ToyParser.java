@@ -525,6 +525,7 @@ public class ToyParser {
         switch (currentToken.type){
             case OPEN_PAREN:
                 advanceToNextToken();
+                //Optional Arguments inside of parenthesis
                 if(currentToken.type.equals(Tokens.CLOSE_PAREN)){
                     advanceToNextToken();
                 }else{
@@ -540,8 +541,13 @@ public class ToyParser {
                 }else{
                     throw new IllegalArgumentException("Expected: ] at " + locationToString(currentToken));
                 }
+                //PostfixOp
+                if(currentToken.type.equals(Tokens.INCREMENT) || currentToken.type.equals(Tokens.DECREMENT)){
+                    advanceToNextToken();
+                }
                 break;
         }
+        //has epsilon
     }
 
     public void parseName(){
