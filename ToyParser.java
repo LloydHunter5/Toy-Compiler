@@ -465,6 +465,11 @@ public class ToyParser {
             case OPEN_PAREN:
                 advanceToNextToken();
                 parseExpression();
+                if(currentToken.type.equals(Tokens.CLOSE_PAREN)){
+                    advanceToNextToken();
+                }else{
+                    throw new IllegalArgumentException("Expected: ) at " + locationToString(currentToken));
+                }
                 break;
             default:
                 throw new IllegalArgumentException("Expecting: Identifier, Literal, or ( at " + locationToString(currentToken));
@@ -595,7 +600,9 @@ public class ToyParser {
             System.err.println(e.getMessage());
             return false;
         }
-        return true;
+
+        //if there are tokens left after parsing an expression, then the expression is invalid
+        return !lexer.hasNextToken();
     }
 
     public boolean hasNextToken(){

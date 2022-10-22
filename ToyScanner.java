@@ -38,13 +38,12 @@ public class ToyScanner {
         ToyLexer lexer = new ToyLexer(s);
         ToyParser parser = new ToyParser(lexer);
 
-        while(parser.hasNextToken()){
-            if(parser.parseLine()){
-                System.out.println("Input is a valid expression");
-            }else{
-                System.err.println("Input is not a valid expression");
-            }
+        if(parser.parseLine()){
+            System.out.println("Input is a valid expression");
+        }else{
+            System.err.println("Input is not a valid expression");
         }
+
 
         for(Token t : parser.consumedInputArchive){
             System.out.println(t);
