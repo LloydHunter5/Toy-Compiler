@@ -1,4 +1,3 @@
-
 Hello_World  1_127	'c' 	 "Hello"               // Identifiers & literals
 '\\'  '\''  '\n'  ""  " \\ "  " \" \' "            // Character & string literals
 program if else while return void int char boolean // Reserved words
