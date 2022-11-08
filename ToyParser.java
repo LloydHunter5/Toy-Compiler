@@ -9,13 +9,29 @@ public class ToyParser {
         this.consumedInputArchive = new ArrayList<>();
     }
 
+    public enum Kind{
+        VARIABLE,
+        LITERAL,
+        BINARY_OP,
+        PREFIX_UNARY_OP,
+        POSTFIX_UNARY_OP,
+        INDEX,
+        CALL,
+        IF,
+        WHILE,
+        RETURN,
+        BLOCK,
+        ARGUMENTS,
+        DECL,
+        METHOD_DECL,
+        PARAMETER
+    }
     //Root class for all objects of type node, every node has reference to its parent
     public class Node
     {
-        public Node parent;
-
-        public Node(Node parent){
-            this.parent = parent;
+        public Kind kind;
+        public Node(Kind kind){
+            this.kind = kind;
         }
     }
     //Node subclasses
@@ -25,9 +41,24 @@ public class ToyParser {
     {
         public Node child;
 
-        public SingleNode(Node parent, Node child){
-            super(parent);
+        public SingleNode(Kind kind, Node child){
+            super(kind);
             this.child = child;
+        }
+    }
+
+    public class PrefixSingleNode extends SingleNode{
+        public Token prefix;
+        public PrefixSingleNode(Kind kind, Node child, Token prefix){
+            super(kind,child);
+            this.prefix = prefix;
+        }
+    }
+    public class PostfixSingleNode extends SingleNode{
+        public Token postfix;
+        public PostfixSingleNode(Kind kind, Node child, Token postfix){
+            super(kind,child);
+            this.postfix = postfix;
         }
     }
 
@@ -35,8 +66,8 @@ public class ToyParser {
     public class TerminalNode extends Node{
         public Token token;
 
-        public TerminalNode(Node parent, Token token){
-            super(parent);
+        public TerminalNode(Kind kind, Token token){
+            super(kind);
             this.token = token;
         }
     }
@@ -45,8 +76,8 @@ public class ToyParser {
     public class OperationNode extends BinaryNode
     {
         public Token operator;
-        public OperationNode(Node parent, Node left, Node right, Token operator){
-            super(parent,left,right);
+        public OperationNode(Kind kind, Node left, Node right, Token operator){
+            super(kind,left,right);
             this.operator = operator;
         }
     }
@@ -56,8 +87,8 @@ public class ToyParser {
         public Node left;
         public Node right;
 
-        public BinaryNode(Node parent, Node left, Node right){
-            super(parent);
+        public BinaryNode(Kind kind, Node left, Node right){
+            super(kind);
             this.left = left;
             this.right = right;
         }
@@ -66,8 +97,8 @@ public class ToyParser {
     public class TrinaryNode extends BinaryNode {
         public Node middle;
 
-        public TrinaryNode(Node parent, Node left, Node right, Node middle){
-            super(parent,left,right);
+        public TrinaryNode(Kind kind, Node left, Node right, Node middle){
+            super(kind,left,right);
             this.middle = middle;
         }
     }
@@ -77,15 +108,15 @@ public class ToyParser {
         public Token left;
         public Token right;
 
-        public ContainedNode(Node parent, Token left, Node child, Token right){
-            super(parent,child);
+        public ContainedNode(Kind kind,Token left, Node child, Token right){
+            super(kind,child);
             this.left = left;
             this.right = right;
         }
     }
 
     //contained node with a prefix
-    public class PrefixContainedNode extends ContainedNode{
+    /* public class PrefixContainedNode extends ContainedNode{
         public Node prefix;
         public PrefixContainedNode(Node parent, Token left, Node child, Token right, Node prefix) {
             super(parent,left,child,right);
@@ -99,71 +130,13 @@ public class ToyParser {
             super(parent,left,child,right);
             this.postfix = postfix;
         }
-    }
+    } */
 
 
     /* should work for nodes that require an arbitrary number of terminals and non-terminals
     user would pre-allocate an array, pass it in, and then check + cast it to the appropriate type */
-    public class MiscNode extends Node{
-        private Object[] children;
-        private int index;
-
-        public MiscNode(Node parent, Object[] itemsLeftToRight){
-            super(parent);
-            children = itemsLeftToRight;
-            index = 0;
-        }
-
-        public void startScanning(){
-            this.index = 0;
-        }
-
-        public boolean hasNextChild(){
-            return this.index < children.length;
-        }
-
-        public Object nextChild(){
-            return children[this.index++];
-        }
-    }
-
     // Helper class for getting the correct node, for example: return Wizard.createNode(parseConjunction(), parseDisjunctionPrime())
     // should make code a little easier to write, will always be able to create the correct type of node
-    public class Wizard{
-        public Node createNode(Node parent){
-            return new Node(parent);
-        }
-        public Node createNode(Node parent, Node child){
-            return new SingleNode(parent,child);
-        }
-        public Node createNode(Node parent, Token left, Node child, Token right){
-            return new ContainedNode(parent,left,child,right);
-        }
-        public Node createNode(Node parent, Token left, Node child, Token right, Node fix, boolean isPrefix){
-            if(isPrefix){
-                return new PrefixContainedNode(parent,left,child,right,fix);
-            }else{
-                return new PostfixContainedNode(parent,left,child,right,fix);
-            }
-        }
-        public Node createNode(Node parent, Node left, Node right){
-            return new BinaryNode(parent,left,right);
-        }
-        public Node createNode(Node parent, Node left, Node right, Node middle){
-            return new TrinaryNode(parent, left,right,middle);
-        }
-        public Node createNode(Node parent, Token token){
-            return new TerminalNode(parent, token);
-        }
-        public Node createNode(Node parent, Node left,Token operation, Node right){
-            return new OperationNode(parent,left,right,operation);
-        }
-        public Node createNode(Node parent, Object[] children){
-            return new MiscNode(parent, children);
-        }
-    }
-
-
 
     //Group of methods that implement the grammar
     public void parseProgram()
@@ -269,7 +242,6 @@ public class ToyParser {
         if(currentToken.type.equals(Tokens.ASSIGN)){
             //TERMINAL consume input
             advanceToNextToken();
-
             parseDisjunction();
             parseExpressionPrime();
         }
@@ -290,13 +262,12 @@ public class ToyParser {
         //has epsilon
     }
 
-    public void parseOrOp(){
+    public Token parseOrOp(){
         switch(currentToken.type){
             case OR:
             case CONDITIONAL_OR:
             case COMPLEMENT:
-                advanceToNextToken();
-                break;
+                return advanceToNextToken();
             default:
                 throw new IllegalArgumentException("expected: |, ||, or ^ at " + locationToString(currentToken));
         }
@@ -316,12 +287,11 @@ public class ToyParser {
         //has epsilon
     }
 
-    public void parseAndOp(){
+    public Token parseAndOp(){
         switch(currentToken.type){
             case AND:
             case CONDITIONAL_AND:
-                advanceToNextToken();
-                break;
+                return advanceToNextToken();
             default:
                 throw new IllegalArgumentException("Expected: & or && at " + locationToString(currentToken));
         }
@@ -348,7 +318,7 @@ public class ToyParser {
         //has epsilon
     }
 
-    public void parseCompareOp(){
+    public Token parseCompareOp(){
         switch (currentToken.type) {
             case LESS:
             case LESS_EQUAL:
@@ -356,8 +326,7 @@ public class ToyParser {
             case GREATER_EQUAL:
             case EQUAL:
             case NOT_EQUAL:
-                advanceToNextToken();
-                break;
+                return advanceToNextToken();
             default:
                 throw new IllegalArgumentException("Expected: >, <, >=, <=, ==, or != at " + locationToString(currentToken));
         }
@@ -377,11 +346,11 @@ public class ToyParser {
         }
     }
 
-    public void parseSign(){
+    public Token parseSign(){
         switch (currentToken.type){
             case PLUS:
             case MINUS:
-                advanceToNextToken();
+                return advanceToNextToken();
             default:
                 throw new IllegalArgumentException("Expected: + or - at " + locationToString(currentToken));
         }
@@ -398,12 +367,11 @@ public class ToyParser {
         }
     }
 
-    public void parseAddOp(){
+    public Token parseAddOp(){
         switch (currentToken.type){
             case PLUS:
             case MINUS:
-                advanceToNextToken();
-                break;
+                return advanceToNextToken();
             default:
                 throw new IllegalArgumentException("Expected: + or - at" + locationToString(currentToken));
         }
@@ -427,13 +395,12 @@ public class ToyParser {
         //has epsilon
     }
 
-    public void parseMulOp(){
+    public Token parseMulOp(){
         switch (currentToken.type){
             case MULTIPLY:
             case DIVIDE:
             case MOD:
-                advanceToNextToken();
-                break;
+                return advanceToNextToken();
             default:
                 throw new IllegalArgumentException("Expected: *, /, or % at " + locationToString(currentToken));
         }
@@ -481,37 +448,36 @@ public class ToyParser {
 
         //can be epsilon
         if(currentToken.type.equals(Tokens.OPEN_BRACKET)){
-            advanceToNextToken();
+             advanceToNextToken();
 
             parseExpression();
             if(currentToken.type.equals(Tokens.CLOSE_BRACKET)){
-                advanceToNextToken();
+                 advanceToNextToken();
             }else{
                 throw new IllegalArgumentException("Expected: ] at " + locationToString(currentToken));
             }
         }
     }
 
-    public void parsePrefixOp(){
+    public Token parsePrefixOp(){
         switch (currentToken.type){
             case INCREMENT:
             case DECREMENT:
-                advanceToNextToken();
-                break;
+                return advanceToNextToken();
             default:
                 throw new IllegalArgumentException("Expected: ++ or -- at " + locationToString(currentToken));
         }
     }
-    public void parseUnaryOp(){
+    public Token parseUnaryOp(){
         switch (currentToken.type){
             case NOT:
-                advanceToNextToken();
+                return advanceToNextToken();
             default:
                 throw new IllegalArgumentException("Expected: ! at " + locationToString(currentToken) );
         }
     }
 
-    public void parseLiteral(){
+    public Token parseLiteral(){
         switch (currentToken.type){
             case HEXADECIMAL_LITERAL:
             case NUMERIC_LITERAL:
@@ -519,8 +485,7 @@ public class ToyParser {
             case STRING_LITERAL:
             case TRUE:
             case FALSE:
-                advanceToNextToken();
-                break;
+                return advanceToNextToken();
             default:
                 throw new IllegalArgumentException("Expected: Literal at " + locationToString(currentToken));
         }
@@ -582,9 +547,14 @@ public class ToyParser {
 
 
     //Helper Methods
-    public void advanceToNextToken(){
-        consumedInputArchive.add(currentToken);
+    public Token advanceToNextToken(){
+        //Go to the next token
+        Token oldToken = currentToken;
         currentToken = lexer.getNextToken();
+
+        //Store and return the previous
+        consumedInputArchive.add(oldToken);
+        return oldToken;
     }
 
     public String locationToString(Token t){
