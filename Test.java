@@ -4,8 +4,9 @@ public class Test{
 
 
         {
-            for (int i = 0; f(); i = i + "hello".hashCode()) {
+            hello : for (int i = 0; f(); i = i + "hello".hashCode()) {
                 System.out.println(i);
+                break hello;
             }
         }
     }

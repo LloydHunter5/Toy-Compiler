@@ -1,1 +1,1 @@
-(a[12+3]) | ((c == howdy)) += = eight[twelve[twenty[42]]]
+(a[12+3]) | ((c == howdy))

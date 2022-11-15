@@ -115,67 +115,76 @@ public class ToyParser {
         }
     }
 
-    //contained node with a prefix
-    /* public class PrefixContainedNode extends ContainedNode{
-        public Node prefix;
-        public PrefixContainedNode(Node parent, Token left, Node child, Token right, Node prefix) {
-            super(parent,left,child,right);
-            this.prefix = prefix;
-        }
-    }
-    //
-    public class PostfixContainedNode extends ContainedNode{
-        public Node postfix;
-        public PostfixContainedNode(Node parent, Token left, Node child, Token right, Node postfix) {
-            super(parent,left,child,right);
-            this.postfix = postfix;
-        }
-    } */
-
-
-    /* should work for nodes that require an arbitrary number of terminals and non-terminals
-    user would pre-allocate an array, pass it in, and then check + cast it to the appropriate type */
-    // Helper class for getting the correct node, for example: return Wizard.createNode(parseConjunction(), parseDisjunctionPrime())
-    // should make code a little easier to write, will always be able to create the correct type of node
-
     //Group of methods that implement the grammar
     public void parseProgram()
     {
-        //PROGRAM
-        //IDENTIFIER
-        //parseBlock
+        if(currentToken.type.equals(Tokens.PROGRAM)){
+            advanceToNextToken();
+        }else{
+            throw new IllegalArgumentException("Expected: reserved word : \"program\" at " + locationToString(currentToken));
+        }
+
+        if(currentToken.type.equals(Tokens.IDENTIFIER)) {
+            advanceToNextToken();
+        }else {
+            throw new IllegalArgumentException("Expected: identifier at " + locationToString(currentToken));
+        }
+        parseBlock();
     }
 
     public void parseBlock()
     {
-        // '{'
-        // parseStatements
-        // '}'
+        if(currentToken.type.equals(Tokens.OPEN_CURL_BRACKET)){
+            advanceToNextToken();
+        }else{
+            throw new IllegalArgumentException("Expected: '{' at" + locationToString(currentToken));
+        }
+        parseStatements();
+        if(currentToken.type.equals(Tokens.CLOSE_CURL_BRACKET)){
+            advanceToNextToken();
+        }else{
+            throw new IllegalArgumentException("Expected: '}' at " + locationToString(currentToken));
+        }
     }
 
     public void parseStatements()
     {
-        // parseStatement
-        // parseStatementsPrime
+        parseStatement();
+        parseStatementsPrime();
     }
 
     public void parseStatementsPrime()
     {
-        // while (there is another statement)
-        //      parseStatement
-        // endWhile
+        switch(currentToken.type){
+            //first(statement)
+            //     parseStatement
+        }
     }
 
     public void parseStatement()
     {
-        // switch (first token)
-        //      case (variableType): parseDeclaration
-        //      case (identifier): parseAssignment
-        //      case (if): parseIf
-        //      case (while): parseWhile
-        //      case (return): parseReturn
-        //      case (methodName): parseCall
-        //      case ('{'): parseBlock
+        switch (currentToken.type) {
+            case INT: //variable type
+            case CHAR:
+            case BOOLEAN:
+                parseDeclaration();
+                break;
+            case IDENTIFIER:
+                parseAssignment();
+                break;
+            case IF:
+                parseIf();
+                break;
+            case WHILE:
+                parseWhile();
+                break;
+            case RETURN:
+                parseReturn();
+                break;
+            case OPEN_CURL_BRACKET:
+                parseBlock();
+                break;
+        }
     }
 
     public void parseDeclaration()
@@ -184,10 +193,39 @@ public class ToyParser {
     }
     public void parseAssignment()
     {
-
+        if(currentToken.type.equals(Tokens.IDENTIFIER)){
+            advanceToNextToken();
+        }else{
+            throw new IllegalArgumentException("Expected: Identifier at" + locationToString(currentToken));
+        }
+        switch (currentToken.type){
+            case ASSIGN:
+            case PLUS_ASSIGN:
+            case MINUS_ASSIGN:
+            case OR_ASSIGN:
+            case AND_ASSIGN:
+            case COMPLEMENT_ASSIGN:
+            case DIVIDE_ASSIGN:
+            case MOD_ASSIGN:
+            case MULTIPLY_ASSIGN:
+            case XOR_ASSIGN:
+            case LEFT_SHIFT_ASSIGN:
+            case RIGHT_SHIFT_ASSIGN:
+                advanceToNextToken();
+                break;
+            default:
+                throw new IllegalArgumentException("Expected: '=' '+=' '-=' '*=' '<<=' '>>=' '|=' '&=' '%=' FINISH LATER EVAN" + locationToString(currentToken));
+        }
     }
     public void parseIf()
     {
+        advanceToNextToken(); //if identifier
+        if(currentToken.type.equals(Tokens.OPEN_PAREN)){
+            advanceToNextToken();
+        }else{
+            throw new IllegalArgumentException("Expected: '(' at" + locationToString(currentToken));
+        }
+        parseExpression(); //should be a boolean expression
 
     }
     public void parseMatchedStatement()
@@ -439,7 +477,7 @@ public class ToyParser {
                 }
                 break;
             default:
-                throw new IllegalArgumentException("Expecting: Identifier, Literal, or ( at " + locationToString(currentToken));
+                throw new IllegalArgumentException("Expected: Identifier, Literal, or ( at " + locationToString(currentToken));
         }
     }
 
