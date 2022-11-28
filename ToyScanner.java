@@ -5,7 +5,7 @@ import java.util.Scanner;
 
 public class ToyScanner {
     public static void main(String[] args) throws FileNotFoundException {
-        testParser("src/parseTest.txt");
+        testParser("src/Simple.txt");
     }
 
     public static void testLexer(String filepath) throws FileNotFoundException{
@@ -34,19 +34,25 @@ public class ToyScanner {
     }
 
     public static void testParser(String filepath) throws FileNotFoundException{
-        Scanner s = new Scanner(new File(filepath));
-        ToyLexer lexer = new ToyLexer(s);
-        ToyParser parser = new ToyParser(lexer);
+        try {
+            Scanner s = new Scanner(new File(filepath));
+            ToyLexer lexer = new ToyLexer(s);
+            ToyParser parser = new ToyParser(lexer);
 
-        if(parser.parseLine()){
-            System.out.println("Input is a valid expression");
-        }else{
-            System.err.println("Input is not a valid expression");
-        }
+            parser.parseProgram();
+
+            if (!lexer.hasNextToken()) {
+                System.out.println("Valid!");
+            } else {
+                System.err.println("Invalid");
+            }
 
 
-        for(Token t : parser.consumedInputArchive){
-            System.out.println(t);
+            for (Token t : parser.consumedInputArchive) {
+                System.out.println(t);
+            }
+        }catch(FileNotFoundException e){
+            System.err.println("file not found");
         }
     }
 
