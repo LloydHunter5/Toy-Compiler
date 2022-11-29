@@ -28,7 +28,9 @@ public class ToyParser {
         METHOD_DECL,
         PARAMETER,
         TYPE,
-        ASSIGNMENT
+        ASSIGNMENT,
+        PROGRAM,
+        SIMPLE_EXPRESSION
     }
     //Root class for all objects of type node, every node has reference to its parent
     public class Node
@@ -87,9 +89,16 @@ public class ToyParser {
 
     public class VariableNode extends LeafNode{
         public LinkedList<Token> names;
+        //For array vars
+        public IndexNode index;
         public VariableNode(LinkedList<Token> names){
+            this(names,null);
+        }
+
+        public VariableNode(LinkedList<Token> names, IndexNode index){
             super(Kind.VARIABLE);
             this.names = names;
+            this.index = index;
         }
     }
 
@@ -202,10 +211,21 @@ public class ToyParser {
 
     public class TypeNode extends Node{
         public Token type;
-        public TypeNode(Token type){
+        public boolean isArrayType;
+        public Node arrSize;
+        public TypeNode(Token type, boolean isArrayType, Node arrSize){
             super(Kind.TYPE);
             // int, char, bool, void, ArrayType
             this.type = type;
+            this.isArrayType = isArrayType;
+            this.arrSize = arrSize;
+        }
+
+        public TypeNode(Token type, boolean isArrayType){
+            this(type,isArrayType,null);
+        }
+        public TypeNode(Token type){
+            this(type,false,null);
         }
     }
     public class BlockNode extends Node{
@@ -255,21 +275,44 @@ public class ToyParser {
         }
     }
 
+    public class ProgramNode extends Node{
+        public Token name;
+        public BlockNode body;
+
+        public ProgramNode(Token name,BlockNode body){
+            super(Kind.PROGRAM);
+            this.name = name;
+            this.body = body;
+        }
+    }
+
+    //Extension of binaryOp to include a sign for the left node
+    public class SimpleExpressionNode extends BinaryOp{
+        public Token sign;
+        public SimpleExpressionNode(Token sign, BinaryOp left, SimpleExpressionNode right, Token operator){
+            super(left,right,operator);
+            this.kind = Kind.SIMPLE_EXPRESSION;
+            this.sign = sign;
+        }
+
+    }
+
     //Group of methods that implement the grammar
-    public void parseProgram()
+    public Node parseProgram()
     {
         if(currentToken.type.equals(Tokens.PROGRAM)){
             advanceToNextToken();
         }else{
             throw new IllegalArgumentException("Expected: reserved word: \"program\" at " + locationToString(currentToken));
         }
-
+        Token prgmName;
         if(currentToken.type.equals(Tokens.IDENTIFIER)) {
-            advanceToNextToken();
+            prgmName = advanceToNextToken();
         }else {
             throw new IllegalArgumentException("Expected: identifier at " + locationToString(currentToken));
         }
-        parseBlock();
+        BlockNode block = parseBlock();
+        return new ProgramNode(prgmName,block);
     }
 
     public BlockNode parseBlock()
@@ -305,10 +348,11 @@ public class ToyParser {
                 case INT: //variable type
                 case CHAR:
                 case BOOLEAN:
+                case VOID: //only for methods, but both are parsed in the same method
                     stmts.add(parseDeclaration());
                     break;
                 case IDENTIFIER:
-                    stmts.add(parseAssignment());
+                    stmts.add(parseAssignmentOrCall());
                     break;
                 case IF:
                     stmts.add(parseIf());
@@ -337,7 +381,8 @@ public class ToyParser {
             case BOOLEAN:
                 return parseDeclaration();
             case IDENTIFIER:
-                return parseAssignment();
+                //since both start with identifiers, just parse both in the same function
+                return parseAssignmentOrCall();
             case IF:
                 return parseIf();
             case WHILE:
@@ -384,13 +429,16 @@ public class ToyParser {
                 advanceToNextToken();
                 return new VarDeclNode(type,name,expr);
             }
+        }else if(currentToken.type.equals(Tokens.SEMICOLON)) { //ex. "int a;"
+            advanceToNextToken();
+            return new VarDeclNode(type,name);
         }else if(currentToken.type.equals(Tokens.OPEN_PAREN)){
             //Method decl
             advanceToNextToken();
+            //Optional method parameters
             LinkedList<ParamNode> params = null;
             if(!currentToken.type.equals(Tokens.CLOSE_PAREN)){
-                //parseParameters -> LinkedList<ParamNode>
-
+                params = parseParameters();
             }
             if(currentToken.type.equals(Tokens.CLOSE_PAREN)){
                 advanceToNextToken();
@@ -401,10 +449,60 @@ public class ToyParser {
             return new MethodDecl(type, name, params, block);
         }
         //should only be reached if there is an error
-        throw new IllegalArgumentException("Expected: ( or = at" + locationToString(currentToken));
+        throw new IllegalArgumentException("Expected: '(', '=', or ';' at" + locationToString(currentToken));
 
     }
-    public Node parseAssignment()
+
+    public LinkedList<ParamNode> parseParameters(){
+        ParamNode firstParam = parseParameter();
+        LinkedList<ParamNode> params = parseParametersPrime();
+        params.addFirst(firstParam);
+        return params;
+    }
+
+    public LinkedList<ParamNode> parseParametersPrime(){
+        LinkedList<ParamNode> params = new LinkedList<>();
+        while(currentToken.type.equals(Tokens.COMMA)){
+            advanceToNextToken(); //consume comma
+            params.add(parseParameter()); //parse type and name
+        }
+        return params;
+    }
+
+    public ParamNode parseParameter(){
+        Token typeName;
+        Token name;
+        boolean isArrayParam = false;
+        switch (currentToken.type){
+            case INT:
+            case CHAR:
+            case BOOLEAN:
+                typeName = advanceToNextToken();
+                break;
+            default:
+                throw new IllegalArgumentException("Expected: int, char, boolean at " + locationToString(currentToken));
+        }
+
+        //Optional arrayType
+        if(currentToken.type.equals(Tokens.OPEN_BRACKET)){
+            advanceToNextToken();
+            if(currentToken.type.equals(Tokens.CLOSE_BRACKET)){
+                advanceToNextToken();
+            }else{
+                throw new IllegalArgumentException("Expected: ']' at " + locationToString(currentToken));
+            }
+            isArrayParam = true;
+        }
+
+        if(currentToken.type.equals(Tokens.IDENTIFIER)){
+            name = advanceToNextToken();
+        }else{
+            throw new IllegalArgumentException("Expected: identifier at " + locationToString(currentToken));
+        }
+
+        return new ParamNode(new TypeNode(typeName,isArrayParam),name);
+    }
+    public Node parseAssignmentOrCall()
     {
         VariableNode v;
         if(currentToken.type.equals(Tokens.IDENTIFIER)){
@@ -412,7 +510,14 @@ public class ToyParser {
         }else{
             throw new IllegalArgumentException("Expected: Identifier at" + locationToString(currentToken));
         }
-        Token assignOp;
+        //Assignment
+        Token assignOp = null;
+        Node expr = null;
+
+        //Call
+        LinkedList<Node> callArgs = null;
+
+        boolean isCall = false;
         switch (currentToken.type){
             case ASSIGN:
             case PLUS_ASSIGN:
@@ -427,17 +532,26 @@ public class ToyParser {
             case LEFT_SHIFT_ASSIGN:
             case RIGHT_SHIFT_ASSIGN:
                 assignOp = advanceToNextToken();
+                expr = parseExpression();
+                break;
+            case OPEN_PAREN:
+                isCall = true;
+                callArgs = parseCallArgs();
+                if(currentToken.type.equals(Tokens.CLOSE_PAREN)){
+                    advanceToNextToken();
+                }
                 break;
             default:
                 throw new IllegalArgumentException("Expected: '=' '+=' '-=' '*=' '<<=' '>>=' '|=' '&=' '%=' FINISH LATER EVAN" + locationToString(currentToken));
         }
-        //TODO
-        parseExpression();
-        Node expr = null;
 
         if(currentToken.type.equals(Tokens.SEMICOLON)){
             advanceToNextToken();
-            return new AssignmentNode(v,assignOp,expr);
+            if(isCall){
+                return new CallNode(v.names,callArgs);
+            }else {
+                return new AssignmentNode(v, assignOp, expr);
+            }
         }else{
             throw new IllegalArgumentException("Expected: ';' at" + locationToString(currentToken));
         }
@@ -462,12 +576,31 @@ public class ToyParser {
 
     public WhileNode parseWhile()
     {
-        // WHILE
-        // '('
-        // parseBooleanExpr
-        // ')'
-        // parseStatement
-        return null;
+        Node expr;
+        Node stmt;
+
+        if(currentToken.type.equals(Tokens.WHILE)){
+            advanceToNextToken();
+        }else{
+            throw new IllegalArgumentException("Expected: while at " + locationToString(currentToken));
+        }
+
+        if(currentToken.type.equals(Tokens.OPEN_PAREN)){
+            advanceToNextToken();
+        }else{
+            throw new IllegalArgumentException("Expected: '(' at " + locationToString(currentToken));
+        }
+
+        expr = parseExpression();
+
+        if(currentToken.type.equals(Tokens.CLOSE_PAREN)){
+            advanceToNextToken();
+        }else{
+            throw new IllegalArgumentException("Expected: ')' at " + locationToString(currentToken));
+        }
+
+        stmt = parseStatement();
+        return new WhileNode(expr,stmt);
     }
     public ReturnNode parseReturn()
     {
@@ -480,9 +613,7 @@ public class ToyParser {
         }
         //Optional return value
         if(!currentToken.type.equals(Tokens.SEMICOLON)){
-            //TODO
-            node.expression = null;
-            parseExpression();
+            node.expression = parseExpression();
         }
         //semicolon
         if(currentToken.type.equals(Tokens.SEMICOLON)){
@@ -492,34 +623,22 @@ public class ToyParser {
         }
         return node;
     }
-
-    public CallNode parseCallStatement(){
-        CallNode node = parseCall();
-        if(currentToken.type.equals(Tokens.SEMICOLON)){
-            advanceToNextToken();
-            return node;
-        }else{
-            throw new IllegalArgumentException("Expected ';' at " + locationToString(currentToken));
-        }
-    }
-    public CallNode parseCall()
+    public LinkedList<Node> parseCallArgs()
     {
-        LinkedList<Token> names = parseName();
         LinkedList<Node> args;
         if(currentToken.type.equals(Tokens.OPEN_PAREN)){
             advanceToNextToken();
         }
-
         // Optional args
         if(currentToken.type.equals(Tokens.CLOSE_PAREN)){
             advanceToNextToken();
-            return new CallNode(names);
+            args = new LinkedList<>(); //return empty list if no args
         }else{
             args = parseArguments();
         }
         if(currentToken.type.equals(Tokens.CLOSE_PAREN)){
             advanceToNextToken();
-            return new CallNode(names,args);
+            return args;
         }else{
             throw new IllegalArgumentException("Expected: ')' at " + locationToString(currentToken));
         }
@@ -535,36 +654,48 @@ public class ToyParser {
 
     }
 
-    public void parseArgument(){
-        parseExpression();
+    public Node parseArgument(){
+       return parseExpression();
     }
     // Expressions
-    public void parseExpression(){
-        parseDisjunction();
-        parseExpressionPrime();
+    public BinaryOp parseExpression(){
+        Node left = parseDisjunction();
+        BinaryOp node = parseExpressionPrime();
+        node.left = left;
+        return node;
     }
 
-    public void parseExpressionPrime(){
+    public BinaryOp parseExpressionPrime(){
+        BinaryOp node = new BinaryOp(null,null,null);
         if(currentToken.type.equals(Tokens.ASSIGN)){
             //TERMINAL consume input
-            advanceToNextToken();
-            parseDisjunction();
-            parseExpressionPrime();
+            node.operator = advanceToNextToken();
+            Node leftOfRight = parseDisjunction();
+            BinaryOp right = parseExpressionPrime();
+            right.left = leftOfRight;
+            node.right = right;
         }
+        return node;
         //Has epsilon; no error
     }
 
-    public void parseDisjunction(){
-        parseConjunction();
-        parseDisjunctionPrime();
+    public BinaryOp parseDisjunction(){
+        BinaryOp left = parseConjunction();
+        BinaryOp node = parseDisjunctionPrime();
+        node.left = left;
+        return node;
     }
 
-    public void parseDisjunctionPrime(){
+    public BinaryOp parseDisjunctionPrime(){
+        BinaryOp node = new BinaryOp(null,null,null);
         if(currentToken.type.equals(Tokens.OR) || currentToken.type.equals(Tokens.CONDITIONAL_OR) || currentToken.type.equals(Tokens.COMPLEMENT)) {
-            parseOrOp();
-            parseConjunction();
-            parseDisjunctionPrime();
+            node.operator = parseOrOp();
+            BinaryOp leftOfRight = parseConjunction();
+            BinaryOp right = parseDisjunctionPrime();
+            right.left = leftOfRight;
+            node.right = right;
         }
+        return node;
         //has epsilon
     }
 
@@ -579,17 +710,23 @@ public class ToyParser {
         }
     }
 
-    public void parseConjunction(){
-        parseRelation();
-        parseConjunctionPrime();
+    public BinaryOp parseConjunction(){
+        BinaryOp left = parseRelation();
+        BinaryOp node = parseConjunctionPrime();
+        node.left = left;
+        return node;
     }
 
-    public void parseConjunctionPrime(){
+    public BinaryOp parseConjunctionPrime(){
+        BinaryOp node = new BinaryOp(null,null,null);
         if(currentToken.type.equals(Tokens.AND) || currentToken.type.equals(Tokens.CONDITIONAL_AND)){
-            parseAndOp();
-            parseRelation();
-            parseConjunctionPrime();
+            node.operator = parseAndOp();
+            BinaryOp leftOfRight = parseRelation();
+            BinaryOp right = parseConjunctionPrime();
+            right.left = leftOfRight;
+            node.right = right;
         }
+        return node;
         //has epsilon
     }
 
@@ -603,12 +740,15 @@ public class ToyParser {
         }
     }
 
-    public void parseRelation(){
-        parseSimpleExpression();
-        parseRelationPrime();
+    public BinaryOp parseRelation(){
+        BinaryOp left = parseSimpleExpression();
+        BinaryOp node = parseRelationPrime();
+        node.left = left;
+        return node;
     }
 
-    public void parseRelationPrime(){
+    public BinaryOp parseRelationPrime(){
+        BinaryOp node = new BinaryOp(null,null,null);
         switch (currentToken.type){
             case LESS:
             case LESS_EQUAL:
@@ -616,11 +756,11 @@ public class ToyParser {
             case GREATER_EQUAL:
             case EQUAL:
             case NOT_EQUAL:
-                parseCompareOp();
-                parseTerm();
-                parseRelationPrime();
+                node.operator = parseCompareOp();
+                node.right = parseSimpleExpression();
                 break;
         }
+        return node;
         //has epsilon
     }
 
@@ -638,18 +778,25 @@ public class ToyParser {
         }
     }
 
-    public void parseSimpleExpression(){
+    public SimpleExpressionNode parseSimpleExpression(){
+        Token sign = null; //null assumes positive
+        BinaryOp left;
+        SimpleExpressionNode node;
+
         switch (currentToken.type){
             case PLUS:
             case MINUS:
-                parseSign();
-                parseTerm();
-                parseSimpleExpressionPrime();
+                sign = parseSign();
+                left = parseTerm();
+                node = parseSimpleExpressionPrime();
                 break;
             default:
-                parseTerm();
-                parseSimpleExpressionPrime();
+                left = parseTerm();
+                node = parseSimpleExpressionPrime();
         }
+        node.left = left;
+        node.sign = sign;
+        return node;
     }
 
     public Token parseSign(){
@@ -662,15 +809,20 @@ public class ToyParser {
         }
     }
 
-    public void parseSimpleExpressionPrime(){
+    public SimpleExpressionNode parseSimpleExpressionPrime(){
+        //Leave sign and left null
+        SimpleExpressionNode node = new SimpleExpressionNode(null,null,null,null);
         switch (currentToken.type){
             case PLUS:
             case MINUS:
-                parseAddOp();
-                parseTerm();
-                parseSimpleExpressionPrime();
+                node.operator = parseAddOp();
+                BinaryOp leftOfRight = parseTerm();
+                SimpleExpressionNode right = parseSimpleExpressionPrime();
+                right.left = leftOfRight;
+                node.right = right;
                 break;
         }
+        return node;
     }
 
     public Token parseAddOp(){
@@ -683,9 +835,10 @@ public class ToyParser {
         }
     }
 
-    public void parseTerm(){
+    public BinaryOp parseTerm(){
         parseFactor();
         parseTermPrime();
+        return null;
     }
 
     public void parseTermPrime(){

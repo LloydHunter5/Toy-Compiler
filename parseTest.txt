@@ -1,1 +1,8 @@
-a.b.c[12] == 2422
+program HelloWorld {
+    int z;
+    int x(int y, int[] z){
+        //Do things here
+        x = HelloWorld.z;
+        return x;
+    }
+}

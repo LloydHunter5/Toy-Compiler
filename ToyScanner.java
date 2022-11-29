@@ -5,7 +5,7 @@ import java.util.Scanner;
 
 public class ToyScanner {
     public static void main(String[] args) throws FileNotFoundException {
-        testParser("src/Simple.txt");
+        testParser("src/parseTest.txt");
     }
 
     public static void testLexer(String filepath) throws FileNotFoundException{
