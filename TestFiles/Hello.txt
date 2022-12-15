@@ -1,0 +1,17 @@
+program Hello {
+
+    // The classic Hello World program.
+
+    char newLine = '\n';
+    char H = 'H';
+    char e = 'e';
+    char l = 'l';
+    char o = 'l';
+
+    output(H);
+    output(e);
+    output(l);
+    output(l);
+    output(o);
+    output(newLine);
+}

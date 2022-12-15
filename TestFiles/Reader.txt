@@ -1,0 +1,39 @@
+program Reader {
+
+    // A program to read numbers from standard input
+    // (one number per line) and check that they are
+    // in ascending order.
+
+    boolean isDigit(char c) {
+        return c >= '0' && c <= '9';
+    }
+
+    int digit(char c) {
+        return c - '0';
+    }
+
+    int readInt() {
+        int result = 0;
+        char c = input();
+        while(isDigit(c)) {
+            result = 10 * result + digit(c);
+            c = input();
+        }
+        return result;
+    }
+
+    int previous = -1;
+    int current = readInt();
+    boolean ascending = true;
+    while (current > 0) {
+        if (current < previous) ascending = false;
+        previous = current;
+        current = readInt();
+    }
+
+    if (ascending) {
+        output('Y');
+    } else {
+        output('N');
+    }
+}

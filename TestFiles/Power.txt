@@ -1,0 +1,57 @@
+program Power {
+
+    // A program to compute powers of a number two different
+    // ways: iteratively (O(n)) and recursively (O(log n)).
+
+    void printDigit(int digit) {
+        output('0' + digit);
+    }
+
+    void print(int n) {
+        boolean negative = n < 0;
+        int thousands = n / 1000 % 10;
+        int hundreds  = n / 100 % 10;
+        int tens = n / 10 % 10;
+
+        if (negative) output('-');
+        if (thousands > 0) printDigit(thousands);
+        if (thousands > 0 || hundreds > 0) printDigit(hundreds);
+        if (thousands > 0 || hundreds > 0 || tens > 0) printDigit(tens);
+        printDigit(ones);
+    }
+
+    void println(int n) {
+        print(n);
+        output('\n');
+    }
+
+    int power1(int x, int n) {
+        int result = 1;
+        int i = 0;
+        while (i < n) {
+            result *= x;
+            i++;
+        }
+    }
+
+    int power2(int x, int n) {
+        if (n <= 0) {
+            return 1;
+        } else {
+            result = power2(x, n/2);
+            result *= result;
+            if (isOdd(n)) result *= x;
+            return result;
+        }
+    }
+
+    int i = 0;
+    int n = 3;
+    while (i++ < 5) {
+        if (power1(n, i) != power2(n, i)) {
+            output('N');
+        } else {
+            output('Y');
+        }
+    }
+}

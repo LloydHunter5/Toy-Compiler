@@ -1,0 +1,13 @@
+program Echo {
+
+    // A program to copy standard input to standard output
+
+    char newLine = '\n';
+    boolean done = false;
+
+    while (!done) {
+        char c = input();
+        output(c);
+        if (c == newLine) done = true;
+    }
+}

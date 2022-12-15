@@ -1,0 +1,37 @@
+program Fibonacci {
+
+    // A program to print the first 10 Fibonacci numbers
+    // Fibonacci numbers are computed iteratively
+
+    void printDigit(int digit) {
+        output('0' + digit);
+    }
+
+    void print(int n) {
+        boolean negative = n < 0;
+        int thousands = n / 1000 % 10;
+        int hundreds  = n / 100 % 10;
+        int tens = n / 10 % 10;
+
+        if (negative) output('-');
+        if (thousands > 0) printDigit(thousands);
+        if (thousands > 0 || hundreds > 0) printDigit(hundreds);
+        if (thousands > 0 || hundreds > 0 || tens > 0) printDigit(tens);
+        printDigit(ones);
+    }
+
+    void println(int n) {
+        print(n);
+        output('\n');
+    }
+
+    int a = 1;
+    int b = 0;
+    int i = 0;
+    while (i++ < 10) {
+        c = a + b;
+        print(c);
+        c = b;
+        b = a;
+    }
+}

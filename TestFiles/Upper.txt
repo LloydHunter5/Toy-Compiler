@@ -1,0 +1,25 @@
+program Upper {
+
+    // A program to print Hello in upper case.
+
+    char toUpperCase(char c) {
+        if (c >= 'a' && c <= 'z') {
+            return c - 'a' + 'A';
+        } else {
+            return c;
+        }
+    }
+
+    char h = 'h';
+    char e = toUpperCase('e');
+    char l = toUpperCase('L');
+    char o = l + 3;
+    char newLine = '\n';
+
+    output(toUpperCase(h));
+    output(e);
+    output(l);
+    output(l);
+    output(o);
+    output(newLine);
+}

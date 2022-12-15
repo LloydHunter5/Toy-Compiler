@@ -4,5 +4,12 @@ program HelloWorld {
         //Do things here
         x = HelloWorld.z;
         return x;
+        void x (char c, char v, char[] w){
+            w[0] = c;
+            w[1] = v;
+            w[2] = 'a';
+        }
     }
+    i++;
+
 }

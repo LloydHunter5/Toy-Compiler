@@ -1,16 +1,26 @@
 import java.util.ArrayList;
 import java.util.LinkedList;
+/* TODO:
+    - for expressions, parse tree might be generating the wrong derivation
+*/
+
+
 
 public class ToyParser {
     private final ToyLexer lexer;
     public final ArrayList<Token> consumedInputArchive;
     private Token currentToken;
+    private EM errorMessageType;
     public ToyParser(ToyLexer lexer){
-        this.lexer = lexer;
-        currentToken = lexer.getNextToken();
-        this.consumedInputArchive = new ArrayList<>();
+        this(lexer,EM.STANDARD);
     }
 
+    public ToyParser(ToyLexer lexer, EM errorMessageType){
+        this.lexer = lexer;
+        this.currentToken = lexer.getNextToken();
+        this.consumedInputArchive = new ArrayList<>();
+        this.errorMessageType = errorMessageType;
+    }
     public enum Kind{
         VARIABLE,
         LITERAL,
@@ -55,7 +65,7 @@ public class ToyParser {
 
     public class PrefixUnaryOp extends SingleNode{
         public Token prefix;
-        public PrefixUnaryOp(Node operand, Token prefix){
+        public PrefixUnaryOp(Token prefix, Node operand){
             super(Kind.PREFIX_UNARY_OP,operand);
             this.prefix = prefix;
         }
@@ -77,12 +87,10 @@ public class ToyParser {
     }
 
     public class LiteralNode extends LeafNode{
-        public TypeNode type;
         public Token value;
 
-        public LiteralNode(TypeNode type, Token value){
+        public LiteralNode(Token value){
             super(Kind.LITERAL);
-            this.type = type;
             this.value = value;
         }
     }
@@ -99,6 +107,10 @@ public class ToyParser {
             super(Kind.VARIABLE);
             this.names = names;
             this.index = index;
+        }
+
+        public boolean isArrayType(){
+            return index != null;
         }
     }
 
@@ -139,12 +151,10 @@ public class ToyParser {
     }
 
     public class IndexNode extends Node{
-        public Node arrayVar;
         public Node indexExpr;
 
-        public IndexNode(Node arrayVar, Node indexExpr){
+        public IndexNode(Node indexExpr){
             super(Kind.INDEX);
-            this.arrayVar = arrayVar;
             this.indexExpr = indexExpr;
         }
     }
@@ -300,39 +310,24 @@ public class ToyParser {
     //Group of methods that implement the grammar
     public Node parseProgram()
     {
-        if(currentToken.type.equals(Tokens.PROGRAM)){
-            advanceToNextToken();
-        }else{
-            throw new IllegalArgumentException("Expected: reserved word: \"program\" at " + locationToString(currentToken));
-        }
-        Token prgmName;
-        if(currentToken.type.equals(Tokens.IDENTIFIER)) {
-            prgmName = advanceToNextToken();
-        }else {
-            throw new IllegalArgumentException("Expected: identifier at " + locationToString(currentToken));
-        }
+        match(Tokens.PROGRAM);
+        Token programName = match(Tokens.IDENTIFIER);
         BlockNode block = parseBlock();
-        return new ProgramNode(prgmName,block);
+        return new ProgramNode(programName,block);
     }
 
     public BlockNode parseBlock()
     {
-        if(currentToken.type.equals(Tokens.OPEN_CURL_BRACKET)){
-            advanceToNextToken();
-        }else{
-            throw new IllegalArgumentException("Expected: '{' at" + locationToString(currentToken));
-        }
+        match(Tokens.OPEN_CURL_BRACKET);
         LinkedList<Node> stmts = parseStatements();
-        if(currentToken.type.equals(Tokens.CLOSE_CURL_BRACKET)){
-            advanceToNextToken();
-        }else{
-            throw new IllegalArgumentException("Expected: '}' at " + locationToString(currentToken));
-        }
+        match(Tokens.CLOSE_CURL_BRACKET);
         return new BlockNode(stmts);
     }
 
     public LinkedList<Node> parseStatements()
     {
+        //Statements are technically optional (thanks null program!)
+        if(currentTokenIsType(Tokens.CLOSE_CURL_BRACKET)){ return new LinkedList<>(); }
         Node firstStmt = parseStatement();
         LinkedList<Node> stmts = parseStatementsPrime();
         stmts.addFirst(firstStmt);
@@ -342,58 +337,23 @@ public class ToyParser {
     public LinkedList<Node> parseStatementsPrime()
     {
         LinkedList<Node> stmts = new LinkedList<>();
-        boolean hasNextStatement = true;
-        while(hasNextStatement) {
-            switch (currentToken.type) {
-                case INT: //variable type
-                case CHAR:
-                case BOOLEAN:
-                case VOID: //only for methods, but both are parsed in the same method
-                    stmts.add(parseDeclaration());
-                    break;
-                case IDENTIFIER:
-                    stmts.add(parseAssignmentOrCall());
-                    break;
-                case IF:
-                    stmts.add(parseIf());
-                    break;
-                case WHILE:
-                    stmts.add(parseWhile());
-                    break;
-                case RETURN:
-                    stmts.add(parseReturn());
-                    break;
-                case OPEN_CURL_BRACKET:
-                    stmts.add(parseBlock());
-                    break;
-                default:
-                    hasNextStatement = false;
-            }
+        while(!currentTokenIsType(Tokens.CLOSE_CURL_BRACKET)) {
+            stmts.add(parseStatement());
         }
         return stmts;
     }
 
     public Node parseStatement()
     {
-        switch (currentToken.type) {
-            case INT: //variable type
-            case CHAR:
-            case BOOLEAN:
-                return parseDeclaration();
-            case IDENTIFIER:
-                //since both start with identifiers, just parse both in the same function
-                return parseAssignmentOrCall();
-            case IF:
-                return parseIf();
-            case WHILE:
-                return parseWhile();
-            case RETURN:
-                return parseReturn();
-            case OPEN_CURL_BRACKET:
-                return parseBlock();
-            default:
-                throw new IllegalArgumentException("Expected: stuff at" + locationToString(currentToken));
-        }
+        return switch (currentToken.type) { //variable type
+            case INT, CHAR, BOOLEAN, VOID -> parseDeclaration();
+            case IDENTIFIER -> parseAssignmentOrCall();  //since both start with identifiers, just parse both in the same function
+            case IF -> parseIf();
+            case WHILE -> parseWhile();
+            case RETURN -> parseReturn();
+            case OPEN_CURL_BRACKET -> parseBlock();
+            default -> throw expected("statement");
+        };
     }
 
     public DeclNode parseDeclaration()
@@ -401,59 +361,43 @@ public class ToyParser {
         TypeNode type;
         Token name;
 
-        switch (currentToken.type){
-            case INT:
-            case CHAR:
-            case BOOLEAN:
-            case VOID:
-                type = new TypeNode(advanceToNextToken());
-                break;
-            default:
-                throw new IllegalArgumentException("Expected: int, char, boolean, or void at" + locationToString(currentToken));
+        type = new TypeNode(match(Tokens.METHOD_TYPES));
+        if(currentTokenIsType(Tokens.OPEN_BRACKET)){
+            advanceToNextToken();
+            type.arrSize = parseExpression();
+            match(Tokens.CLOSE_BRACKET);
         }
-
-        if(currentToken.type.equals(Tokens.IDENTIFIER)){
-            name = advanceToNextToken();
-        }else{
-            throw new IllegalArgumentException("Expected: identifier at " + locationToString(currentToken));
-        }
+        
+        name = match(Tokens.IDENTIFIER);
 
         //figure out if it is a method decl or a variable decl
-        if(currentToken.type.equals(Tokens.ASSIGN)){
-            //variable decl
+        
+        if(currentTokenIsType(Tokens.ASSIGN)){
+            // Variable Decl
             advanceToNextToken();
-            //TODO
-            Node expr = null;
-            parseExpression();
+            Node expr = parseExpression();
             if(currentToken.type.equals(Tokens.SEMICOLON)){
                 advanceToNextToken();
                 return new VarDeclNode(type,name,expr);
             }
-        }else if(currentToken.type.equals(Tokens.SEMICOLON)) { //ex. "int a;"
+        }else if(currentTokenIsType(Tokens.SEMICOLON)) { //ex. "int a;"
+            // Variable Decl
             advanceToNextToken();
             return new VarDeclNode(type,name);
-        }else if(currentToken.type.equals(Tokens.OPEN_PAREN)){
+        }else{
             //Method decl
-            advanceToNextToken();
-            //Optional method parameters
-            LinkedList<ParamNode> params = null;
-            if(!currentToken.type.equals(Tokens.CLOSE_PAREN)){
-                params = parseParameters();
-            }
-            if(currentToken.type.equals(Tokens.CLOSE_PAREN)){
-                advanceToNextToken();
-            }else{
-                throw new IllegalArgumentException("Expected: ')' at " + locationToString(currentToken));
-            }
-            BlockNode block = parseBlock();
-            return new MethodDecl(type, name, params, block);
+            match(Tokens.OPEN_PAREN);
+            LinkedList<ParamNode> params = parseParameters();
+            match(Tokens.CLOSE_PAREN);
+            BlockNode body = parseBlock();
+            return new MethodDecl(type, name, params, body);
         }
         //should only be reached if there is an error
-        throw new IllegalArgumentException("Expected: '(', '=', or ';' at" + locationToString(currentToken));
-
+        throw expected("(, =, or ;");
     }
 
     public LinkedList<ParamNode> parseParameters(){
+        if(currentTokenIsType(Tokens.CLOSE_PAREN)) { return new LinkedList<>();}
         ParamNode firstParam = parseParameter();
         LinkedList<ParamNode> params = parseParametersPrime();
         params.addFirst(firstParam);
@@ -462,7 +406,7 @@ public class ToyParser {
 
     public LinkedList<ParamNode> parseParametersPrime(){
         LinkedList<ParamNode> params = new LinkedList<>();
-        while(currentToken.type.equals(Tokens.COMMA)){
+        while(currentTokenIsType(Tokens.COMMA)){
             advanceToNextToken(); //consume comma
             params.add(parseParameter()); //parse type and name
         }
@@ -470,46 +414,20 @@ public class ToyParser {
     }
 
     public ParamNode parseParameter(){
-        Token typeName;
-        Token name;
         boolean isArrayParam = false;
-        switch (currentToken.type){
-            case INT:
-            case CHAR:
-            case BOOLEAN:
-                typeName = advanceToNextToken();
-                break;
-            default:
-                throw new IllegalArgumentException("Expected: int, char, boolean at " + locationToString(currentToken));
-        }
-
+        Token typeName = match(Tokens.VARIABLE_TYPES);
         //Optional arrayType
-        if(currentToken.type.equals(Tokens.OPEN_BRACKET)){
+        if(currentTokenIsType(Tokens.OPEN_BRACKET)){
             advanceToNextToken();
-            if(currentToken.type.equals(Tokens.CLOSE_BRACKET)){
-                advanceToNextToken();
-            }else{
-                throw new IllegalArgumentException("Expected: ']' at " + locationToString(currentToken));
-            }
             isArrayParam = true;
+            match(Tokens.CLOSE_BRACKET);
         }
-
-        if(currentToken.type.equals(Tokens.IDENTIFIER)){
-            name = advanceToNextToken();
-        }else{
-            throw new IllegalArgumentException("Expected: identifier at " + locationToString(currentToken));
-        }
-
+        Token name = match(Tokens.IDENTIFIER);
         return new ParamNode(new TypeNode(typeName,isArrayParam),name);
     }
     public Node parseAssignmentOrCall()
     {
-        VariableNode v;
-        if(currentToken.type.equals(Tokens.IDENTIFIER)){
-            v = parseVariable();
-        }else{
-            throw new IllegalArgumentException("Expected: Identifier at" + locationToString(currentToken));
-        }
+        VariableNode v = parseVariable();
         //Assignment
         Token assignOp = null;
         Node expr = null;
@@ -518,140 +436,92 @@ public class ToyParser {
         LinkedList<Node> callArgs = null;
 
         boolean isCall = false;
-        switch (currentToken.type){
-            case ASSIGN:
-            case PLUS_ASSIGN:
-            case MINUS_ASSIGN:
-            case OR_ASSIGN:
-            case AND_ASSIGN:
-            case COMPLEMENT_ASSIGN:
-            case DIVIDE_ASSIGN:
-            case MOD_ASSIGN:
-            case MULTIPLY_ASSIGN:
-            case XOR_ASSIGN:
-            case LEFT_SHIFT_ASSIGN:
-            case RIGHT_SHIFT_ASSIGN:
-                assignOp = advanceToNextToken();
-                expr = parseExpression();
-                break;
-            case OPEN_PAREN:
-                isCall = true;
-                callArgs = parseCallArgs();
-                if(currentToken.type.equals(Tokens.CLOSE_PAREN)){
-                    advanceToNextToken();
-                }
-                break;
-            default:
-                throw new IllegalArgumentException("Expected: '=' '+=' '-=' '*=' '<<=' '>>=' '|=' '&=' '%=' FINISH LATER EVAN" + locationToString(currentToken));
+
+        if(currentTokenIsType(Tokens.ASSIGNMENT_OPS)){
+            assignOp = advanceToNextToken();
+            expr = parseExpression();
+        }else if(currentTokenIsType(Tokens.OPEN_PAREN)){
+            isCall = true;
+            callArgs = parseCallArgs();
+        }else{
+            Token postfix = parsePrefixOp();
+            match(Tokens.SEMICOLON);
+            return new PostfixUnaryOp(v, postfix);
         }
 
-        if(currentToken.type.equals(Tokens.SEMICOLON)){
-            advanceToNextToken();
-            if(isCall){
-                return new CallNode(v.names,callArgs);
-            }else {
-                return new AssignmentNode(v, assignOp, expr);
-            }
-        }else{
-            throw new IllegalArgumentException("Expected: ';' at" + locationToString(currentToken));
+        match(Tokens.SEMICOLON);
+        if(isCall){
+            return new CallNode(v.names,callArgs);
+        }else {
+            return new AssignmentNode(v, assignOp, expr);
         }
     }
     public IfNode parseIf()
     {
+        IfNode node = new IfNode(null,null);
         advanceToNextToken(); //if identifier
-        if(currentToken.type.equals(Tokens.OPEN_PAREN)){
-            advanceToNextToken();
-        }else{
-            throw new IllegalArgumentException("Expected: '(' at" + locationToString(currentToken));
+        match(Tokens.OPEN_PAREN);
+        node.condition = parseExpression(); //should be a boolean expression
+        match(Tokens.CLOSE_PAREN);
+        node.then = parseStatement();
+        //optional else statement
+        if(currentTokenIsType(Tokens.ELSE)){
+            advanceToNextToken(); //consume else identifier
+            node.otherwise = parseStatement();
         }
-        parseExpression(); //should be a boolean expression
-
-        return null;
-    }
-    public void parseMatchedStatement()
-    {
-
+        return node;
     }
 
 
     public WhileNode parseWhile()
     {
         Node expr;
-        Node stmt;
+        BlockNode body;
 
-        if(currentToken.type.equals(Tokens.WHILE)){
-            advanceToNextToken();
-        }else{
-            throw new IllegalArgumentException("Expected: while at " + locationToString(currentToken));
-        }
-
-        if(currentToken.type.equals(Tokens.OPEN_PAREN)){
-            advanceToNextToken();
-        }else{
-            throw new IllegalArgumentException("Expected: '(' at " + locationToString(currentToken));
-        }
-
+        match(Tokens.WHILE);
+        match(Tokens.OPEN_PAREN);
         expr = parseExpression();
-
-        if(currentToken.type.equals(Tokens.CLOSE_PAREN)){
-            advanceToNextToken();
-        }else{
-            throw new IllegalArgumentException("Expected: ')' at " + locationToString(currentToken));
-        }
-
-        stmt = parseStatement();
-        return new WhileNode(expr,stmt);
+        match(Tokens.CLOSE_PAREN);
+        body = parseBlock();
+        return new WhileNode(expr,body);
     }
     public ReturnNode parseReturn()
     {
         ReturnNode node = new ReturnNode();
-        // reserved word return
-        if(currentToken.type.equals(Tokens.RETURN)){
-            advanceToNextToken();
-        }else{
-            throw new IllegalArgumentException("Expected return statement at " + locationToString(currentToken));
-        }
-        //Optional return value
-        if(!currentToken.type.equals(Tokens.SEMICOLON)){
+        match(Tokens.RETURN);
+        if(!currentTokenIsType(Tokens.SEMICOLON)){
             node.expression = parseExpression();
         }
-        //semicolon
-        if(currentToken.type.equals(Tokens.SEMICOLON)){
-            advanceToNextToken();
-        }else{
-            throw new IllegalArgumentException("Expected ';' at " + locationToString(currentToken));
-        }
+        match(Tokens.SEMICOLON);
         return node;
     }
     public LinkedList<Node> parseCallArgs()
     {
-        LinkedList<Node> args;
-        if(currentToken.type.equals(Tokens.OPEN_PAREN)){
+
+        if(currentToken.type.equals(Tokens.OPEN_PAREN)){ //TODO CHECK THIS
             advanceToNextToken();
         }
-        // Optional args
-        if(currentToken.type.equals(Tokens.CLOSE_PAREN)){
-            advanceToNextToken();
-            args = new LinkedList<>(); //return empty list if no args
-        }else{
-            args = parseArguments();
-        }
-        if(currentToken.type.equals(Tokens.CLOSE_PAREN)){
-            advanceToNextToken();
-            return args;
-        }else{
-            throw new IllegalArgumentException("Expected: ')' at " + locationToString(currentToken));
-        }
+
+        LinkedList<Node> args = parseArguments();
+        match(Tokens.CLOSE_PAREN);
+        return args;
     }
 
     public LinkedList<Node> parseArguments(){
-        parseArgument();
-        parseArgumentsPrime();
-        return new LinkedList<>();
+        Node firstArg = parseArgument();
+        LinkedList<Node> args = parseArgumentsPrime();
+        args.addFirst(firstArg);
+        return args;
     }
 
-    public void parseArgumentsPrime(){
-
+    public LinkedList<Node> parseArgumentsPrime(){
+        LinkedList<Node> args = new LinkedList<>();
+        while(currentTokenIsType(Tokens.COMMA)){
+            advanceToNextToken();
+            Node arg = parseArgument();
+            args.addLast(arg);
+        }
+        return args;
     }
 
     public Node parseArgument(){
@@ -667,7 +537,7 @@ public class ToyParser {
 
     public BinaryOp parseExpressionPrime(){
         BinaryOp node = new BinaryOp(null,null,null);
-        if(currentToken.type.equals(Tokens.ASSIGN)){
+        if(currentToken.type.equals(Tokens.ASSIGN)){ //TODO CHECK THIS
             //TERMINAL consume input
             node.operator = advanceToNextToken();
             Node leftOfRight = parseDisjunction();
@@ -688,7 +558,7 @@ public class ToyParser {
 
     public BinaryOp parseDisjunctionPrime(){
         BinaryOp node = new BinaryOp(null,null,null);
-        if(currentToken.type.equals(Tokens.OR) || currentToken.type.equals(Tokens.CONDITIONAL_OR) || currentToken.type.equals(Tokens.COMPLEMENT)) {
+        if(currentTokenIsType(Tokens.OR_OPS)) {
             node.operator = parseOrOp();
             BinaryOp leftOfRight = parseConjunction();
             BinaryOp right = parseDisjunctionPrime();
@@ -700,14 +570,7 @@ public class ToyParser {
     }
 
     public Token parseOrOp(){
-        switch(currentToken.type){
-            case OR:
-            case CONDITIONAL_OR:
-            case COMPLEMENT:
-                return advanceToNextToken();
-            default:
-                throw new IllegalArgumentException("expected: |, ||, or ^ at " + locationToString(currentToken));
-        }
+        return match(Tokens.OR_OPS);
     }
 
     public BinaryOp parseConjunction(){
@@ -719,7 +582,7 @@ public class ToyParser {
 
     public BinaryOp parseConjunctionPrime(){
         BinaryOp node = new BinaryOp(null,null,null);
-        if(currentToken.type.equals(Tokens.AND) || currentToken.type.equals(Tokens.CONDITIONAL_AND)){
+        if(currentTokenIsType(Tokens.AND_OPS)){
             node.operator = parseAndOp();
             BinaryOp leftOfRight = parseRelation();
             BinaryOp right = parseConjunctionPrime();
@@ -731,13 +594,7 @@ public class ToyParser {
     }
 
     public Token parseAndOp(){
-        switch(currentToken.type){
-            case AND:
-            case CONDITIONAL_AND:
-                return advanceToNextToken();
-            default:
-                throw new IllegalArgumentException("Expected: & or && at " + locationToString(currentToken));
-        }
+        return match(Tokens.AND_OPS);
     }
 
     public BinaryOp parseRelation(){
@@ -749,33 +606,16 @@ public class ToyParser {
 
     public BinaryOp parseRelationPrime(){
         BinaryOp node = new BinaryOp(null,null,null);
-        switch (currentToken.type){
-            case LESS:
-            case LESS_EQUAL:
-            case GREATER:
-            case GREATER_EQUAL:
-            case EQUAL:
-            case NOT_EQUAL:
-                node.operator = parseCompareOp();
-                node.right = parseSimpleExpression();
-                break;
+        if(currentTokenIsType(Tokens.COMPARE_OPS)){
+            node.operator = parseCompareOp();
+            node.right = parseSimpleExpression();
         }
         return node;
         //has epsilon
     }
 
     public Token parseCompareOp(){
-        switch (currentToken.type) {
-            case LESS:
-            case LESS_EQUAL:
-            case GREATER:
-            case GREATER_EQUAL:
-            case EQUAL:
-            case NOT_EQUAL:
-                return advanceToNextToken();
-            default:
-                throw new IllegalArgumentException("Expected: >, <, >=, <=, ==, or != at " + locationToString(currentToken));
-        }
+        return match(Tokens.COMPARE_OPS);
     }
 
     public SimpleExpressionNode parseSimpleExpression(){
@@ -783,30 +623,18 @@ public class ToyParser {
         BinaryOp left;
         SimpleExpressionNode node;
 
-        switch (currentToken.type){
-            case PLUS:
-            case MINUS:
-                sign = parseSign();
-                left = parseTerm();
-                node = parseSimpleExpressionPrime();
-                break;
-            default:
-                left = parseTerm();
-                node = parseSimpleExpressionPrime();
+        if(currentTokenIsType(Tokens.ADD_OPS)){
+            sign = parseSign();
         }
+        left = parseTerm();
+        node = parseSimpleExpressionPrime();
         node.left = left;
         node.sign = sign;
         return node;
     }
 
     public Token parseSign(){
-        switch (currentToken.type){
-            case PLUS:
-            case MINUS:
-                return advanceToNextToken();
-            default:
-                throw new IllegalArgumentException("Expected: + or - at " + locationToString(currentToken));
-        }
+        return match(Tokens.ADD_OPS);
     }
 
     public SimpleExpressionNode parseSimpleExpressionPrime(){
@@ -826,182 +654,112 @@ public class ToyParser {
     }
 
     public Token parseAddOp(){
-        switch (currentToken.type){
-            case PLUS:
-            case MINUS:
-                return advanceToNextToken();
-            default:
-                throw new IllegalArgumentException("Expected: + or - at" + locationToString(currentToken));
-        }
+        return match(Tokens.ADD_OPS);
     }
 
+    //TODO
     public BinaryOp parseTerm(){
-        parseFactor();
-        parseTermPrime();
-        return null;
+        Node right = parseFactor();
+        BinaryOp node = parseTermPrime();
+        node.right = right;
+        return node;
     }
 
-    public void parseTermPrime(){
-        switch (currentToken.type){
-            case MULTIPLY:
-            case DIVIDE:
-            case MOD:
-                parseMulOp();
-                parseFactor();
-                parseTermPrime();
-                break;
+    //TODO
+    public BinaryOp parseTermPrime(){
+        BinaryOp node = new BinaryOp(null,null,null);
+        if(currentTokenIsType(Tokens.MUL_OPS)){
+            node.operator = parseMulOp();
+            Node leftOfRight = parseFactor();
+            BinaryOp right = parseTermPrime();
+            right.left = leftOfRight;
+            node.right = right;
         }
         //has epsilon
+        return node;
     }
 
     public Token parseMulOp(){
-        switch (currentToken.type){
-            case MULTIPLY:
-            case DIVIDE:
-            case MOD:
-                return advanceToNextToken();
-            default:
-                throw new IllegalArgumentException("Expected: *, /, or % at " + locationToString(currentToken));
+        return match(Tokens.MUL_OPS);
+    }
+    //TODO
+    public Node parseFactor(){
+        if(currentTokenIsType(Tokens.IDENTIFIER)){
+            return parsePrimary();
+        }else if(currentTokenIsType(Tokens.LITERALS)){
+            return new LiteralNode(parseLiteral());
+        }else if(currentTokenIsType(Tokens.NOT)){
+            return new PrefixUnaryOp(parseUnaryOp(),parseFactor());
+        }else if(currentTokenIsType(Tokens.INCREMENT_OPS)){
+            return new PrefixUnaryOp(parsePrefixOp(),parseVariable());
+        }else{
+            match(Tokens.OPEN_PAREN);
+            Node expr = parseExpression();
+            match(Tokens.CLOSE_PAREN);
+            return expr;
         }
     }
 
-    public void parseFactor(){
-        switch (currentToken.type){
-            case IDENTIFIER:
-                parseName();
-                parseFactorSuffix();
-                break;
-            case HEXADECIMAL_LITERAL:
-            case NUMERIC_LITERAL:
-            case CHARACTER_LITERAL:
-            case STRING_LITERAL:
-            case TRUE:
-            case FALSE:
-                parseLiteral();
-                break;
-            case NOT:
-                parseUnaryOp();
-                parseFactor();
-                break;
-            case INCREMENT:
-            case DECREMENT:
-                parsePrefixOp();
-                parseVariable();
-                break;
-            case OPEN_PAREN:
-                advanceToNextToken();
-                parseExpression();
-                if(currentToken.type.equals(Tokens.CLOSE_PAREN)){
-                    advanceToNextToken();
-                }else{
-                    throw new IllegalArgumentException("Expected: ) at " + locationToString(currentToken));
-                }
-                break;
-            default:
-                throw new IllegalArgumentException("Expected: Identifier, Literal, or ( at " + locationToString(currentToken));
+    public Node parsePrimary(){
+        LinkedList<Token> name = parseName();
+        LinkedList<Node> args = new LinkedList<>();
+        IndexNode expr;
+        if(currentTokenIsType(Tokens.INCREMENT_OPS)){
+            return new PostfixUnaryOp(new VariableNode(name),parsePrefixOp());
+        }
+        if (currentTokenIsType(Tokens.OPEN_PAREN)) {
+            advanceToNextToken();
+            //optional args
+            if(!currentTokenIsType(Tokens.CLOSE_PAREN)) {
+                args = parseArguments();
+            }
+            match(Tokens.CLOSE_PAREN);
+            return new CallNode(name, args);
+        } else if (currentTokenIsType(Tokens.OPEN_BRACKET)) {
+            advanceToNextToken();
+            expr = new IndexNode(parseExpression());
+            match(Tokens.CLOSE_BRACKET);
+            return new VariableNode(name, expr);
+        } else {
+            return new VariableNode(name);
         }
     }
 
     public VariableNode parseVariable(){
         LinkedList<Token> name = parseName();
         VariableNode variable = new VariableNode(name);
-        //TODO: handle arrayType variables
-        //can be epsilon
-        if(currentToken.type.equals(Tokens.OPEN_BRACKET)){
-            advanceToNextToken();
 
-            parseExpression();
-            if(currentToken.type.equals(Tokens.CLOSE_BRACKET)){
-                 advanceToNextToken();
-            }else{
-                throw new IllegalArgumentException("Expected: ] at " + locationToString(currentToken));
-            }
+        if(currentTokenIsType(Tokens.OPEN_BRACKET)){
+            advanceToNextToken();
+            variable.index = new IndexNode(parseExpression());
+            match(Tokens.CLOSE_BRACKET);
         }
         return variable;
     }
 
     public Token parsePrefixOp(){
-        switch (currentToken.type){
-            case INCREMENT:
-            case DECREMENT:
-                return advanceToNextToken();
-            default:
-                throw new IllegalArgumentException("Expected: ++ or -- at " + locationToString(currentToken));
-        }
+        return match(Tokens.INCREMENT_OPS);
     }
     public Token parseUnaryOp(){
-        switch (currentToken.type){
-            case NOT:
-                return advanceToNextToken();
-            default:
-                throw new IllegalArgumentException("Expected: ! at " + locationToString(currentToken) );
-        }
+        return match(Tokens.NOT);
     }
 
     public Token parseLiteral(){
-        switch (currentToken.type){
-            case HEXADECIMAL_LITERAL:
-            case NUMERIC_LITERAL:
-            case CHARACTER_LITERAL:
-            case STRING_LITERAL:
-            case TRUE:
-            case FALSE:
-                return advanceToNextToken();
-            default:
-                throw new IllegalArgumentException("Expected: Literal at " + locationToString(currentToken));
-        }
-    }
-
-    public void parseFactorSuffix(){
-        switch (currentToken.type){
-            case OPEN_PAREN:
-                advanceToNextToken();
-                //Optional Arguments inside of parenthesis
-                if(currentToken.type.equals(Tokens.CLOSE_PAREN)){
-                    advanceToNextToken();
-                }else{
-                    parseArguments();
-                    advanceToNextToken();
-                }
-                break;
-            case OPEN_BRACKET:
-                advanceToNextToken();
-                parseExpression();
-                if(currentToken.type.equals(Tokens.CLOSE_BRACKET)){
-                    advanceToNextToken();
-                }else{
-                    throw new IllegalArgumentException("Expected: ] at " + locationToString(currentToken));
-                }
-                //PostfixOp
-                if(currentToken.type.equals(Tokens.INCREMENT) || currentToken.type.equals(Tokens.DECREMENT)){
-                    advanceToNextToken();
-                }
-                break;
-        }
-        //has epsilon
+        return match(Tokens.LITERALS);
     }
 
     public LinkedList<Token> parseName(){
-        if(currentToken.type.equals(Tokens.IDENTIFIER)){
-            Token temp = advanceToNextToken(); //got identifier
-            LinkedList<Token> tokens = parseNamePrime();
-            tokens.add(0,temp);
-            return tokens;
-        }else{
-            throw new IllegalArgumentException("Expected: Identifier  at " + locationToString(currentToken));
-        }
+        Token temp = match(Tokens.IDENTIFIER);
+        LinkedList<Token> tokens = parseNamePrime();
+        tokens.addFirst(temp);
+        return tokens;
     }
 
     public LinkedList<Token> parseNamePrime(){
         LinkedList<Token> names = new LinkedList<>();
-
-        while(currentToken.type.equals(Tokens.DOT)){
+        while(currentTokenIsType(Tokens.DOT)){
             advanceToNextToken();
-            if(currentToken.type.equals(Tokens.IDENTIFIER)){
-                names.addLast(advanceToNextToken());
-            }else{
-                throw new IllegalArgumentException("Expected: Identifier at " + locationToString(currentToken));
-            }
+            names.addLast(match(Tokens.IDENTIFIER));
         }
         return names;
         //has epsilon
@@ -1020,25 +778,66 @@ public class ToyParser {
         return oldToken;
     }
 
-    public String locationToString(Token t){
-        return "[line: " + currentToken.line + ", column: " + currentToken.col + "]";
+    public boolean currentTokenIsType(Tokens type){
+        return currentToken.type.equals(type);
     }
 
-    //Methods that use the grammar
-    public boolean parseLine(){
-        currentToken = lexer.getNextToken();
-        try {
-            parseExpression();
-        } catch (IllegalArgumentException e) {
-            System.err.println(e.getMessage());
-            return false;
+    public boolean currentTokenIsType(Tokens[] types){
+        for(Tokens type : types){
+            if(currentTokenIsType(type)){
+                return true;
+            }
         }
+        return false;
+    }
+    public Token match(Tokens type){
+        if(currentToken.type.equals(type)){
+            return advanceToNextToken();
+        }else{
+            throw expected(type.name());
+        }
+    }
 
-        //if there are tokens left after parsing an expression, then the expression is invalid
-        return !lexer.hasNextToken();
+    public Token match(Tokens[] types){
+        for(Tokens type : types){
+            if(currentToken.type.equals(type)){
+                return advanceToNextToken();
+            }
+        }
+        StringBuilder error = new StringBuilder();
+        for(Tokens type : types){
+            error.append(type.name());
+            error.append(", ");
+        }
+        throw expected(error.toString());
+    }
+
+    public String locationToString(Token t){
+        return "[" + currentToken.line + ", " + currentToken.col + "]";
+    }
+
+    public String verboseLocationToString(Token t){
+        return "[line: " + currentToken.line + ", column: " + currentToken.col + "]";
     }
 
     public boolean hasNextToken(){
         return lexer.hasNextToken();
+    }
+    public void setErrorMessageType(EM errorMessageType){
+        this.errorMessageType = errorMessageType;
+    }
+    public enum EM{
+        VERBOSE,
+        STANDARD,
+        MINIMAL
+    }
+
+    public IllegalArgumentException expected(String tokens){
+        String message = switch (this.errorMessageType){
+            case VERBOSE -> "Expected: " + tokens + " at " + verboseLocationToString(currentToken) + ", but got " + currentToken.type.name();
+            case STANDARD -> "Expected: " + tokens + " at " + locationToString(currentToken);
+            case MINIMAL -> locationToString(currentToken);
+        };
+        return new IllegalArgumentException(message);
     }
 }

@@ -1,0 +1,28 @@
+program Random {
+
+	int seed = 12345;
+	int K = 17;
+	int C = 3;
+	int M = 32707;
+
+	int random() {
+		return seed = ((K * seed + C) % M);
+	}
+
+	void print(int n) {
+		if (n > 0) {
+			print(n / 10);
+			output('0' + n % 10);
+		}
+	}
+
+	void println(int n, boolean y, char ball, int[] cha) {
+		print(n);
+		output('\n');
+	}
+
+	int i = 0;
+	while (i++ < 10) {
+		println(random());
+	}
+}

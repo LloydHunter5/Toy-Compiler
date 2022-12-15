@@ -6,5 +6,5 @@ program Simple {
 	int y = 7;
 	int z = x + y;
 
-	z = x + y
+	z = x + y;
 }

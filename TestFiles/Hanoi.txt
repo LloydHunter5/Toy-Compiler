@@ -1,0 +1,37 @@
+program Hanoi {
+
+    // A program to compute the number of moves required
+    // to solve the Towers of Hanoi with N disks.
+
+    int LEFT = 0;
+    int MIDDLE = 1;
+    int RIGHT = 2;
+    int moves = 0;
+
+    void print(int n) {
+        if (n > 0) {
+            print(n / 10);
+            print('0' + n % 10);
+        }
+    }
+
+    void hanoi(int n) {
+
+        void move(int from, int to) {
+            Hanoi.moves++;
+        }
+
+        void hanoi(int n, int from, int to, int using) {
+            if (n > 0) {
+                hanoi(n-1, from, using, to);
+                move(from, to);
+                hanoi(n-1, using, to, from);
+            }
+        }
+
+        hanoi(n, LEFT, RIGHT, MIDDLE);
+    }
+
+    hanoi(6);
+    print(Hanoi.moves);
+}
