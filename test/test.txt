@@ -10,7 +10,7 @@ true false in out                                  // Predefined identifiers
 +++---&&&|||=== ++++----&&&&||||====               // ++ + -- - && & || | == = ++ ++ -- -- && && || || == ==
 +== ++== ++= +++= +== + + =                        // += =  ++ ==  ++ =  ++ +=  += =  + + =
 
-2B = X_ + _Y - 1__000 * 2_                         // Identifier & numeric literal errors
+2B = X_ + _Y - 1__000 * 2_                         // token.Identifier & numeric literal errors
 ''   'abc'  '\.'  '                                // Character literal errors
 "\$ \"                                             // String literal errors
 `~@#$? _                                           // Errors

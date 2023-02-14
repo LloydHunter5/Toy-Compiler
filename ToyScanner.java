@@ -1,3 +1,7 @@
+import lexer.ToyLexer;
+import parser.ToyParser;
+import token.Token;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
@@ -17,7 +21,7 @@ public class ToyScanner {
 
     public static final ToyParser.EM errorMessageType = ToyParser.EM.STANDARD;
     public static void main(String[] args) {
-        File testProgramDirectory = new File("src/TestFiles");
+        File testProgramDirectory = new File("src/test");
         File[] testPrograms = testProgramDirectory.listFiles();
 
         if(testPrograms != null) {
@@ -84,7 +88,7 @@ public class ToyScanner {
             return !lexer.hasNextToken();
 
 
-//            for (Token t : parser.consumedInputArchive) {
+//            for (token.Token t : parser.consumedInputArchive) {
 //                System.out.println(t);
 //            }
         }catch(FileNotFoundException e){
