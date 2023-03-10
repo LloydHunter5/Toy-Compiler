@@ -1,15 +1,23 @@
 package ast;
 
+import parser.nodes.DeclNode;
+import parser.nodes.VarDeclNode;
 import token.Identifier;
-import parser.ToyParser.*;
+import ast.types.VariableTypes;
 
 
-public class Variable{
-    private Types.VariableTypes type;
-    private Identifier name;
+public class Variable extends SymbolTableEntry{
+    private VariableTypes type;
 
 
+    public Variable(DeclNode node){
+        this.type = VariableTypes.convertType(node.type);
+        this.name = node.name;
+    }
     public Identifier getName() {
         return this.name;
     }
+    public VariableTypes getType(){return this.type;}
+
+
 }

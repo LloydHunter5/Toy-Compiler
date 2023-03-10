@@ -1,5 +1,6 @@
 package parser;
 
+import token.Identifier;
 import token.Token;
 import token.TokenType;
 import lexer.ToyLexer;
@@ -42,7 +43,7 @@ public class ToyParser {
     */
 
     //Group of methods that implement the grammar
-    public Node parseProgram()
+    public ProgramNode parseProgram()
     {
         match(TokenType.PROGRAM);
         Token programName = match(TokenType.IDENTIFIER);
@@ -81,7 +82,9 @@ public class ToyParser {
     {
         return switch (currentToken.type) { //variable type
             case INT, CHAR, BOOLEAN, VOID -> parseDeclaration();
-            case IDENTIFIER -> parseAssignmentOrCall();  //since both start with identifiers, just parse both in the same function
+            //since both start with identifiers, just parse both in the same function
+            case IDENTIFIER -> parseAssignmentOrCall();
+            case INCREMENT,DECREMENT -> parsePrefixUnaryOp();
             case IF -> parseIf();
             case WHILE -> parseWhile();
             case RETURN -> parseReturn();
@@ -93,7 +96,7 @@ public class ToyParser {
     public DeclNode parseDeclaration()
     {
         TypeNode type;
-        Token name;
+        Identifier name;
 
         type = new TypeNode(match(TokenType.METHOD_TYPES));
         if(currentTokenIsType(TokenType.OPEN_BRACKET)){
@@ -102,7 +105,7 @@ public class ToyParser {
             match(TokenType.CLOSE_BRACKET);
         }
         
-        name = match(TokenType.IDENTIFIER);
+        name = (Identifier) match(TokenType.IDENTIFIER);
 
         //figure out if it is a method decl or a variable decl
         
@@ -156,7 +159,7 @@ public class ToyParser {
             isArrayParam = true;
             match(TokenType.CLOSE_BRACKET);
         }
-        Token name = match(TokenType.IDENTIFIER);
+        Identifier name = (Identifier) match(TokenType.IDENTIFIER);
         return new ParamNode(new TypeNode(typeName,isArrayParam),name);
     }
     public Node parseAssignmentOrCall()
@@ -441,7 +444,7 @@ public class ToyParser {
     }
 
     public Node parsePrimary(){
-        LinkedList<Token> name = parseName();
+        LinkedList<Identifier> name = parseName();
         LinkedList<Node> args = new LinkedList<>();
         IndexNode expr;
         if(currentTokenIsType(TokenType.INCREMENT_OPS)){
@@ -466,7 +469,7 @@ public class ToyParser {
     }
 
     public VariableNode parseVariable(){
-        LinkedList<Token> name = parseName();
+        LinkedList<Identifier> name = parseName();
         VariableNode variable = new VariableNode(name);
 
         if(currentTokenIsType(TokenType.OPEN_BRACKET)){
@@ -475,6 +478,13 @@ public class ToyParser {
             match(TokenType.CLOSE_BRACKET);
         }
         return variable;
+    }
+
+    public Node parsePrefixUnaryOp(){
+        Token op = parsePrefixOp();
+        VariableNode v = parseVariable();
+        match(TokenType.SEMICOLON);
+        return new PrefixUnaryOp(op,v);
     }
 
     public Token parsePrefixOp(){
@@ -488,18 +498,18 @@ public class ToyParser {
         return match(TokenType.LITERALS);
     }
 
-    public LinkedList<Token> parseName(){
-        Token temp = match(TokenType.IDENTIFIER);
-        LinkedList<Token> tokens = parseNamePrime();
+    public LinkedList<Identifier> parseName(){
+        Identifier temp = (Identifier) match(TokenType.IDENTIFIER);
+        LinkedList<Identifier> tokens = parseNamePrime();
         tokens.addFirst(temp);
         return tokens;
     }
 
-    public LinkedList<Token> parseNamePrime(){
-        LinkedList<Token> names = new LinkedList<>();
+    public LinkedList<Identifier> parseNamePrime(){
+        LinkedList<Identifier> names = new LinkedList<>();
         while(currentTokenIsType(TokenType.DOT)){
             advanceToNextToken();
-            names.addLast(match(TokenType.IDENTIFIER));
+            names.addLast((Identifier) match(TokenType.IDENTIFIER));
         }
         return names;
         //has epsilon

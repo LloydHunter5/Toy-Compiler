@@ -11,6 +11,9 @@ public abstract class Node
     public Node(Kind kind){
         this.kind = kind;
     }
+    public Node castToKind(){
+        return this;
+    }
 }
 //Node subclasses
 

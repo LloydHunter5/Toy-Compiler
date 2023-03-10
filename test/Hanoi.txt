@@ -11,7 +11,7 @@ program Hanoi {
     void print(int n) {
         if (n > 0) {
             print(n / 10);
-            print('0' + n % 10);
+            output('0' + n % 10);
         }
     }
 

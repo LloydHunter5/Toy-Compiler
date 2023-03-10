@@ -3,8 +3,11 @@ package ast;
 
 import token.Identifier;
 
-public interface SymbolTableEntry {
-    public Types getType();
-    public Identifier getName();
+public abstract class SymbolTableEntry {
+    Identifier name;
 
+    @Override
+    public String toString(){
+        return "\t" + name.value;
+    }
 }

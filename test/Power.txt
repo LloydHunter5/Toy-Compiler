@@ -12,6 +12,7 @@ program Power {
         int thousands = n / 1000 % 10;
         int hundreds  = n / 100 % 10;
         int tens = n / 10 % 10;
+        int ones = n % 10;
 
         if (negative) output('-');
         if (thousands > 0) printDigit(thousands);
@@ -38,7 +39,7 @@ program Power {
         if (n <= 0) {
             return 1;
         } else {
-            result = power2(x, n/2);
+            int result = power2(x, n/2);
             result *= result;
             if (isOdd(n)) result *= x;
             return result;

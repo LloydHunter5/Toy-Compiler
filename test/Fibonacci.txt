@@ -12,6 +12,7 @@ program Fibonacci {
         int thousands = n / 1000 % 10;
         int hundreds  = n / 100 % 10;
         int tens = n / 10 % 10;
+        int ones = n % 10;
 
         if (negative) output('-');
         if (thousands > 0) printDigit(thousands);
@@ -29,7 +30,7 @@ program Fibonacci {
     int b = 0;
     int i = 0;
     while (i++ < 10) {
-        c = a + b;
+        int c = a + b;
         print(c);
         c = b;
         b = a;

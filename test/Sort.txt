@@ -61,8 +61,8 @@ program Sort {
     initialize(a, N);
     sort(a, N);
     if (isSorted(a, N)) {
-        out('Y');
+        output('Y');
     } else {
-        out('N');
+        output('N');
     }
 }

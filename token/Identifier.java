@@ -1,6 +1,6 @@
 package token;
 
-public class Identifier extends Token {
+public class Identifier extends Token{
     public String value;
 
     public Identifier(TokenType type, int line, int col, String value) {
@@ -11,5 +11,10 @@ public class Identifier extends Token {
     @Override
     public String toString() {
         return this.type + ": " + this.value + " @ line: " + line + ", column: " + col;
+    }
+
+    @Override
+    public int hashCode(){
+        return value.hashCode();
     }
 }

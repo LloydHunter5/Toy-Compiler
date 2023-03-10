@@ -12,7 +12,6 @@ public enum Kind{
     WHILE,
     RETURN,
     BLOCK,
-    ARGUMENTS,
     DECL,
     METHOD_DECL,
     PARAMETER,

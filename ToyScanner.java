@@ -1,5 +1,7 @@
+import ast.AbstractSyntaxTree;
 import lexer.ToyLexer;
 import parser.ToyParser;
+import parser.nodes.ProgramNode;
 import token.Token;
 
 import java.io.File;
@@ -25,28 +27,48 @@ public class ToyScanner {
         File[] testPrograms = testProgramDirectory.listFiles();
 
         if(testPrograms != null) {
+            System.out.println("Program\t\t  Parse\t\tSemantics");
             for (File prgm : testPrograms) {
                 if(!prgm.getName().equals("test.txt")){
-                    boolean completed = false;
-                    String errorMessage = "Program has code after the program block";
+                    boolean completedParse = false;
+                    boolean completedSemantics = false;
+                    String parseErrorMessage = "Program has code after the program block";
+                    String semanticErrorMessage = "Something broke while checking semantics";
                     try {
-                        completed = testParser(prgm);
+                        completedParse = testParser(prgm);
+                        try {
+                            completedSemantics = testSymbolTable(prgm);
+                        }catch(IllegalArgumentException e){
+                            semanticErrorMessage = e.getMessage();
+                        }
                     }catch(IllegalArgumentException e){
-                        errorMessage = e.getMessage();
+                        parseErrorMessage = e.getMessage();
                     }
+
+
                     System.out.print(prgm.getName().substring(0,prgm.getName().lastIndexOf(".")) + ": ");
                     int len = prgm.getName().length();
+                    // Text align
                     while (len < 16){
                         System.out.print(" ");
                         len++;
                     }
-                    if(completed){
-                        System.out.println(ANSI_GREEN + "Valid" + ANSI_RESET);
+                    if(completedParse){
+                        System.out.print(ANSI_GREEN + "Valid" + ANSI_RESET);
+                        System.out.print("\t\t");
+                        if(completedSemantics){
+                            System.out.print(ANSI_GREEN + "Valid" + ANSI_RESET);
+                        }else{
+                            System.out.print(ANSI_RED + semanticErrorMessage + ANSI_RESET);
+                        }
                     }else{
-                        System.out.println(ANSI_RED + "Invalid | " + errorMessage + ANSI_RESET);
+                        System.out.println(ANSI_RED + parseErrorMessage + ANSI_RESET);
                     }
+                    System.out.println();
+
                 }
             }
+
         }
     }
 
@@ -98,5 +120,24 @@ public class ToyScanner {
     }
     public static boolean testParser(String filepath) throws FileNotFoundException{
         return testParser(new File(filepath));
+    }
+
+    public static boolean testSymbolTable(File f){
+        try {
+            Scanner s = new Scanner(f);
+            ToyLexer lexer = new ToyLexer(s);
+            ToyParser parser = new ToyParser(lexer,errorMessageType);
+            AbstractSyntaxTree ast = AbstractSyntaxTree.build(parser.parseProgram());
+            //ast.printContents();
+            return true;
+
+
+//            for (token.Token t : parser.consumedInputArchive) {
+//                System.out.println(t);
+//            }
+        }catch(FileNotFoundException e){
+            System.err.println("file not found");
+        }
+        return false;
     }
 }
