@@ -42,7 +42,7 @@ public class AbstractSyntaxTree {
 
             case VARIABLE -> {
                 if(!scope.hasVariable((VariableNode)node)){
-                    throw new IllegalArgumentException("Variable" + ((VariableNode) node).names + "is not defined!");
+                    throw new IllegalArgumentException("Variable '" + ((VariableNode) node).name + "' is not defined!");
                 }
             }
             case CALL -> {

@@ -37,14 +37,13 @@ public class ToyScanner {
                     try {
                         completedParse = testParser(prgm);
                         try {
-                            completedSemantics = testSymbolTable(prgm);
+                            completedSemantics = testSymbolTable(prgm,false);
                         }catch(IllegalArgumentException e){
                             semanticErrorMessage = e.getMessage();
                         }
                     }catch(IllegalArgumentException e){
                         parseErrorMessage = e.getMessage();
                     }
-
 
                     System.out.print(prgm.getName().substring(0,prgm.getName().lastIndexOf(".")) + ": ");
                     int len = prgm.getName().length();
@@ -122,13 +121,15 @@ public class ToyScanner {
         return testParser(new File(filepath));
     }
 
-    public static boolean testSymbolTable(File f){
+    public static boolean testSymbolTable(File f,boolean trace){
         try {
             Scanner s = new Scanner(f);
             ToyLexer lexer = new ToyLexer(s);
             ToyParser parser = new ToyParser(lexer,errorMessageType);
             AbstractSyntaxTree ast = AbstractSyntaxTree.build(parser.parseProgram());
-            //ast.printContents();
+            if(trace) {
+                ast.printContents();
+            }
             return true;
 
 

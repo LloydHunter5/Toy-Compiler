@@ -108,7 +108,6 @@ public class ToyParser {
         name = (Identifier) match(TokenType.IDENTIFIER);
 
         //figure out if it is a method decl or a variable decl
-        
         if(currentTokenIsType(TokenType.ASSIGN)){
             // Variable Decl
             advanceToNextToken();
@@ -188,7 +187,7 @@ public class ToyParser {
 
         match(TokenType.SEMICOLON);
         if(isCall){
-            return new CallNode(v.names,callArgs);
+            return new CallNode(v.scope,v.name,callArgs);
         }else {
             return new AssignmentNode(v, assignOp, expr);
         }
@@ -425,7 +424,6 @@ public class ToyParser {
     public Token parseMulOp(){
         return match(TokenType.MUL_OPS);
     }
-    //TODO
     public Node parseFactor(){
         if(currentTokenIsType(TokenType.IDENTIFIER)){
             return parsePrimary();
@@ -444,34 +442,42 @@ public class ToyParser {
     }
 
     public Node parsePrimary(){
-        LinkedList<Identifier> name = parseName();
-        LinkedList<Node> args = new LinkedList<>();
-        IndexNode expr;
-        if(currentTokenIsType(TokenType.INCREMENT_OPS)){
-            return new PostfixUnaryOp(new VariableNode(name),parsePrefixOp());
-        }
+        LinkedList<Identifier> scope = parseName();
+        Identifier name = scope.removeLast();
+        // Is a method call
         if (currentTokenIsType(TokenType.OPEN_PAREN)) {
             advanceToNextToken();
             //optional args
+            LinkedList<Node> args;
             if(!currentTokenIsType(TokenType.CLOSE_PAREN)) {
                 args = parseArguments();
+            }else{
+                args = new LinkedList<>();
             }
             match(TokenType.CLOSE_PAREN);
-            return new CallNode(name, args);
-        } else if (currentTokenIsType(TokenType.OPEN_BRACKET)) {
-            advanceToNextToken();
-            expr = new IndexNode(parseExpression());
-            match(TokenType.CLOSE_BRACKET);
-            return new VariableNode(name, expr);
-        } else {
-            return new VariableNode(name);
+            return new CallNode(scope,name,args);
         }
+
+        // Is a variable reference of some kind
+        VariableNode variable = new VariableNode(scope,name);
+        if(currentTokenIsType(TokenType.INCREMENT_OPS)){
+            return new PostfixUnaryOp(variable,parsePrefixOp());
+        }
+        // optional array index
+        if (currentTokenIsType(TokenType.OPEN_BRACKET)) {
+            advanceToNextToken();
+            variable.index = new IndexNode(parseExpression());
+            match(TokenType.CLOSE_BRACKET);
+        }
+        return variable;
+
     }
 
     public VariableNode parseVariable(){
-        LinkedList<Identifier> name = parseName();
-        VariableNode variable = new VariableNode(name);
+        LinkedList<Identifier> scope = parseName();
+        Identifier name = scope.removeLast();
 
+        VariableNode variable = new VariableNode(scope,name);
         if(currentTokenIsType(TokenType.OPEN_BRACKET)){
             advanceToNextToken();
             variable.index = new IndexNode(parseExpression());

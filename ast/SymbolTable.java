@@ -2,8 +2,6 @@ package ast;
 
 import parser.nodes.*;
 import token.Identifier;
-import token.Token;
-import token.TokenType;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -58,33 +56,34 @@ public class SymbolTable {
     }
 
     public boolean hasVariable(VariableNode variable) {
-        LinkedList<Identifier> names = variable.names;
+        LinkedList<Identifier> variableScope = variable.scope;
         SymbolTable tempScope = this;
-        if(names.size() <= 1){
+        if(variableScope == null || variableScope.size() == 0){
             while(tempScope.parent != null){
-                if(tempScope.isVariableInScope(names.getFirst())){
+                if(tempScope.isVariableInScope(variable.name)){
                     return true;
                 }
                 tempScope = tempScope.parent;
             }
-        }else{
-            while(tempScope.parent != null){
-                // We are in the right scope, stop
-                if(tempScope.name.equals(names.getFirst().value)){
-                    tempScope = tempScope.parent;
-                    break;
-                }
-                tempScope = tempScope.parent;
-            }
+            return tempScope.isVariableInScope(variable.name);
         }
+
+        while(tempScope.parent != null){
+            // We are in the right scope, stop
+            if(tempScope.name.equals(variableScope.getFirst().value)){
+                break;
+            }
+            tempScope = tempScope.parent;
+        }
+
         // Check through the scopes, confirm they all exist within each other. Stops before the last ID
-        Iterator<Identifier> i = names.iterator();
+        Iterator<Identifier> i = variableScope.iterator();
         Identifier currentID = i.next();
         //If we're in the program scope, check if that's correct. If it's not its ok
         if(tempScope.parent == null){
             if(tempScope.name.equals(currentID.value)){
-                currentID = i.next();
-            };
+                if(i.hasNext()) currentID = i.next();
+            }
         }
         while(i.hasNext()){
             if(!tempScope.isMethodInScope(currentID)){
@@ -94,23 +93,24 @@ public class SymbolTable {
             currentID = i.next();
         }
         //Return if the variable exists in the given scope
-        return tempScope.isVariableInScope(currentID);
+        return tempScope.isVariableInScope(variable.name);
     }
 
     public boolean hasMethod(CallNode call) {
-        LinkedList<Identifier> names = call.name;
+        LinkedList<Identifier> callScope = call.scope;
         SymbolTable tempScope = this;
-        if(names.size() <= 1){
+        if(callScope == null || callScope.size() == 0){
             while(tempScope.parent != null){
-                if(tempScope.isMethodInScope(names.getFirst())){
+                if(tempScope.isMethodInScope(call.name)){
                     return true;
                 }
                 tempScope = tempScope.parent;
             }
+            return tempScope.isMethodInScope(call.name);
         }else{
             while(tempScope.parent != null){
                 // We are in the right scope, stop
-                if(tempScope.name.equals(names.getFirst().value)){
+                if(tempScope.name.equals(callScope.getFirst().value)){
                     tempScope = tempScope.parent;
                     break;
                 }
@@ -119,7 +119,7 @@ public class SymbolTable {
         }
 
         // Check through the scopes, confirm they all exist within each other. Stops before the last ID
-        Iterator<Identifier> i = names.iterator();
+        Iterator<Identifier> i = callScope.iterator();
         Identifier currentID = i.next();
         while(i.hasNext()){
             if(!tempScope.isMethodInScope(currentID)){
@@ -129,7 +129,7 @@ public class SymbolTable {
             currentID = i.next();
         }
         //Return if the method exists in the given scope
-        return tempScope.isMethodInScope(currentID);
+        return tempScope.isMethodInScope(call.name);
     }
 
     public boolean isMethodInScope(Identifier name){
@@ -148,22 +148,28 @@ public class SymbolTable {
     public String toString(){
         StringBuilder s = new StringBuilder("Scope: " + name + "\n");
         s.append("\tParameters: \n");
-        for(SymbolTableEntry item : parameters.values()){
-            s.append("\t");
-            s.append(item.toString());
-            s.append("\n");
+        for(Parameter item : parameters.values()){
+            s.append("\t")
+            .append(item.toString())
+                .append(" : ")
+                .append(item.getType())
+            .append("\n");
         }
         s.append("\tVariables: \n");
-        for(SymbolTableEntry item : variables.values()){
-            s.append("\t");
-            s.append(item.toString());
-            s.append("\n");
+        for(Variable item : variables.values()){
+            s.append("\t")
+            .append(item.toString())
+                .append(" : ")
+                .append(item.getType())
+            .append("\n");
         }
         s.append("\tMethods: \n");
-        for(SymbolTableEntry item : methods.values()){
-            s.append("\t");
-            s.append(item.toString());
-            s.append("\n");
+        for(Method item : methods.values()){
+            s.append("\t")
+            .append(item.toString())
+                .append(" : ")
+                .append(item.getReturnType())
+            .append("\n");
         }
         return s.toString();
     }

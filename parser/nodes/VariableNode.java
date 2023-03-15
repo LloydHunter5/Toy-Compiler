@@ -1,24 +1,33 @@
 package parser.nodes;
 
-import parser.ToyParser;
 import token.Identifier;
-import token.Token;
 
 import java.util.LinkedList;
 
 public class VariableNode extends LeafNode {
-    public LinkedList<Identifier> names;
+    public LinkedList<Identifier> scope;
+    public Identifier name;
     //For array vars
     public IndexNode index;
 
-    public VariableNode(LinkedList<Identifier> names) {
-        this(names, null);
+
+    public VariableNode(LinkedList<Identifier> scope, Identifier name, IndexNode index){
+        super(Kind.VARIABLE);
+        this.scope = scope;
+        this.name  = name;
+        this.index = index;
     }
 
-    public VariableNode(LinkedList<Identifier> names, IndexNode index) {
-        super(Kind.VARIABLE);
-        this.names = names;
-        this.index = index;
+    public VariableNode(LinkedList<Identifier> scope, Identifier name) {
+        this(scope,name,null);
+    }
+
+    public VariableNode(Identifier name){
+        this(null,name,null);
+    }
+
+    public VariableNode(Identifier name, IndexNode index){
+        this(null,name,index);
     }
 
     public boolean isArrayType() {

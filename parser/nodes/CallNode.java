@@ -1,22 +1,25 @@
 package parser.nodes;
 
-import parser.ToyParser;
 import token.Identifier;
-import token.Token;
 
 import java.util.LinkedList;
 
 public class CallNode extends Node {
-    public LinkedList<Identifier> name;
+    public LinkedList<Identifier> scope;
     public LinkedList<Node> args;
+    public Identifier name;
 
-    public CallNode(LinkedList<Identifier> name, LinkedList<Node> args) {
+    public CallNode(LinkedList<Identifier> scope,Identifier name, LinkedList<Node> args) {
         super(Kind.CALL);
+        this.scope = scope;
         this.name = name;
         this.args = args;
     }
 
-    public CallNode(LinkedList<Identifier> name) {
-        this(name, null);
+    public CallNode(LinkedList<Identifier> scope) {
+        super(Kind.CALL);
+        this.name = scope.removeLast();
+        this.scope = scope;
+        this.args = null;
     }
 }

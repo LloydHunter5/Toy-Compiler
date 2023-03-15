@@ -28,4 +28,8 @@ public class Method extends SymbolTableEntry {
         return table;
     }
 
+    public MethodTypes getReturnType(){
+        return type;
+    }
+
 }

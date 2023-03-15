@@ -1,7 +1,6 @@
 package ast;
 
 import parser.nodes.DeclNode;
-import parser.nodes.VarDeclNode;
 import token.Identifier;
 import ast.types.VariableTypes;
 
