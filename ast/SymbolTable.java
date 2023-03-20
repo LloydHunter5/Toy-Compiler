@@ -4,15 +4,14 @@ import parser.nodes.*;
 import token.Identifier;
 
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedList;
 
 public class SymbolTable {
     public final SymbolTable parent;
     public final String name;
-    private HashMap<String, Parameter> parameters;
-    private HashMap<String, Method> methods;
-    private HashMap<String, Variable> variables;
+    private final HashMap<String, Parameter> parameters;
+    private final HashMap<String, Method> methods;
+    private final HashMap<String, Variable> variables;
 
     public SymbolTable(Identifier name){
         this(name.value,null);
@@ -58,7 +57,7 @@ public class SymbolTable {
     public boolean hasVariable(VariableNode variable) {
         LinkedList<Identifier> variableScope = variable.scope;
         SymbolTable tempScope = this;
-        if(variableScope == null || variableScope.size() == 0){
+        if(variableScope.isEmpty()){
             while(tempScope.parent != null){
                 if(tempScope.isVariableInScope(variable.name)){
                     return true;
@@ -68,68 +67,58 @@ public class SymbolTable {
             return tempScope.isVariableInScope(variable.name);
         }
 
-        while(tempScope.parent != null){
-            // We are in the right scope, stop
-            if(tempScope.name.equals(variableScope.getFirst().value)){
-                break;
-            }
-            tempScope = tempScope.parent;
-        }
-
-        // Check through the scopes, confirm they all exist within each other. Stops before the last ID
-        Iterator<Identifier> i = variableScope.iterator();
-        Identifier currentID = i.next();
-        //If we're in the program scope, check if that's correct. If it's not its ok
-        if(tempScope.parent == null){
-            if(tempScope.name.equals(currentID.value)){
-                if(i.hasNext()) currentID = i.next();
-            }
-        }
-        while(i.hasNext()){
-            if(!tempScope.isMethodInScope(currentID)){
-                return false;
-            }
-            tempScope = tempScope.methods.get(currentID.value).getSymbolTable();
-            currentID = i.next();
-        }
+        tempScope = hasCorrectScope(variableScope,tempScope);
         //Return if the variable exists in the given scope
-        return tempScope.isVariableInScope(variable.name);
+        return tempScope != null && tempScope.isVariableInScope(variable.name);
     }
 
     public boolean hasMethod(CallNode call) {
         LinkedList<Identifier> callScope = call.scope;
         SymbolTable tempScope = this;
-        if(callScope == null || callScope.size() == 0){
-            while(tempScope.parent != null){
-                if(tempScope.isMethodInScope(call.name)){
+        // No defined scope, go out until variable exists
+        if(callScope.isEmpty()) {
+            while (tempScope.parent != null) {
+                if (tempScope.isMethodInScope(call.name)) {
                     return true;
                 }
                 tempScope = tempScope.parent;
             }
             return tempScope.isMethodInScope(call.name);
-        }else{
-            while(tempScope.parent != null){
-                // We are in the right scope, stop
-                if(tempScope.name.equals(callScope.getFirst().value)){
-                    tempScope = tempScope.parent;
-                    break;
-                }
-                tempScope = tempScope.parent;
+        }
+
+        // Scope is defined, go out until we find the first defined symbol table
+        tempScope = hasCorrectScope(callScope,tempScope);
+        //Return if the method exists in the given scope
+        return tempScope != null && tempScope.isMethodInScope(call.name);
+    }
+
+    private SymbolTable hasCorrectScope(LinkedList<Identifier> scope, SymbolTable tempScope){
+        while(tempScope.parent != null){
+            tempScope = tempScope.parent;
+            // We are in the right scope, stop
+            if(tempScope.name.equals(scope.getFirst().value)){
+                break;
             }
         }
 
-        // Check through the scopes, confirm they all exist within each other. Stops before the last ID
-        Iterator<Identifier> i = callScope.iterator();
-        Identifier currentID = i.next();
-        while(i.hasNext()){
-            if(!tempScope.isMethodInScope(currentID)){
-                return false;
-            }
-            tempScope = tempScope.methods.get(currentID.value).getSymbolTable();
-            currentID = i.next();
+        // We unwound to the parent scope and couldn't find the correct method
+        if(!tempScope.name.equals(scope.getFirst().value)){
+            return null;
         }
-        //Return if the method exists in the given scope
-        return tempScope.isMethodInScope(call.name);
+
+        // Check through the scopes, confirm they all exist within each other
+        boolean firstIter = true;
+        for (Identifier currentID : scope) {
+            if(!firstIter) {
+                if (!tempScope.isMethodInScope(currentID)) {
+                    return null;
+                }
+                tempScope = tempScope.methods.get(currentID.value).getSymbolTable();
+            }else{
+                firstIter = false;
+            }
+        }
+        return tempScope;
     }
 
     public boolean isMethodInScope(Identifier name){

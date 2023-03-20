@@ -6,7 +6,7 @@ import ast.types.VariableTypes;
 
 
 public class Variable extends SymbolTableEntry{
-    private VariableTypes type;
+    private final VariableTypes type;
 
 
     public Variable(DeclNode node){

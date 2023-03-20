@@ -1,7 +1,6 @@
 import ast.AbstractSyntaxTree;
 import lexer.ToyLexer;
 import parser.ToyParser;
-import parser.nodes.ProgramNode;
 import token.Token;
 
 import java.io.File;
@@ -21,7 +20,20 @@ public class ToyScanner {
     public static final String ANSI_CYAN = "\u001B[36m";
     public static final String ANSI_WHITE = "\u001B[37m";
 
-    public static final ToyParser.EM errorMessageType = ToyParser.EM.STANDARD;
+    /*
+    * ==================
+    * ==================
+    *  Program Settings
+    * ==================
+    * ==================
+    */
+
+    public static class Settings {
+        public static final boolean printParserStackTrace   = false;
+        public static final boolean printSemanticStackTrace = false;
+        public static final ToyParser.EM errorMessageType   = ToyParser.EM.STANDARD;
+
+    }
     public static void main(String[] args) {
         File testProgramDirectory = new File("src/test");
         File[] testPrograms = testProgramDirectory.listFiles();
@@ -35,9 +47,9 @@ public class ToyScanner {
                     String parseErrorMessage = "Program has code after the program block";
                     String semanticErrorMessage = "Something broke while checking semantics";
                     try {
-                        completedParse = testParser(prgm);
+                        completedParse = testParser(prgm,Settings.printParserStackTrace);
                         try {
-                            completedSemantics = testSymbolTable(prgm,false);
+                            completedSemantics = testSymbolTable(prgm,Settings.printSemanticStackTrace);
                         }catch(IllegalArgumentException e){
                             semanticErrorMessage = e.getMessage();
                         }
@@ -64,9 +76,10 @@ public class ToyScanner {
                         System.out.println(ANSI_RED + parseErrorMessage + ANSI_RESET);
                     }
                     System.out.println();
-
                 }
             }
+
+            testSymbolTable(testPrograms[6],false);
 
         }
     }
@@ -98,44 +111,43 @@ public class ToyScanner {
         }
     }
 
-    public static boolean testParser(File f) {
+    public static boolean testParser(File f, boolean trace) {
         try {
             Scanner s = new Scanner(f);
             ToyLexer lexer = new ToyLexer(s);
-            ToyParser parser = new ToyParser(lexer,errorMessageType);
+            ToyParser parser = new ToyParser(lexer,Settings.errorMessageType);
 
             parser.parseProgram();
+
+            if(trace){
+                for (token.Token t : parser.consumedInputArchive) {
+                    System.out.println(t);
+                }
+            }
 
             return !lexer.hasNextToken();
 
 
-//            for (token.Token t : parser.consumedInputArchive) {
-//                System.out.println(t);
-//            }
+
         }catch(FileNotFoundException e){
             System.err.println("file not found");
         }
         return false;
     }
-    public static boolean testParser(String filepath) throws FileNotFoundException{
-        return testParser(new File(filepath));
+    public static boolean testParser(String filepath,boolean trace) {
+        return testParser(new File(filepath), trace);
     }
 
     public static boolean testSymbolTable(File f,boolean trace){
         try {
             Scanner s = new Scanner(f);
             ToyLexer lexer = new ToyLexer(s);
-            ToyParser parser = new ToyParser(lexer,errorMessageType);
+            ToyParser parser = new ToyParser(lexer,Settings.errorMessageType);
             AbstractSyntaxTree ast = AbstractSyntaxTree.build(parser.parseProgram());
             if(trace) {
                 ast.printContents();
             }
             return true;
-
-
-//            for (token.Token t : parser.consumedInputArchive) {
-//                System.out.println(t);
-//            }
         }catch(FileNotFoundException e){
             System.err.println("file not found");
         }

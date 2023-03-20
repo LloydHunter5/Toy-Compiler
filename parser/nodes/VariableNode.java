@@ -4,17 +4,12 @@ import token.Identifier;
 
 import java.util.LinkedList;
 
-public class VariableNode extends LeafNode {
-    public LinkedList<Identifier> scope;
-    public Identifier name;
+public class VariableNode extends ScopedNode {
     //For array vars
     public IndexNode index;
 
-
     public VariableNode(LinkedList<Identifier> scope, Identifier name, IndexNode index){
-        super(Kind.VARIABLE);
-        this.scope = scope;
-        this.name  = name;
+        super(Kind.VARIABLE,name,scope);
         this.index = index;
     }
 

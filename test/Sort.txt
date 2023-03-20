@@ -26,6 +26,8 @@ program Sort {
             }
             if (isSorted) return;
             i += 1;
+            Sort.sort.i = 1;
+            Sort.sort.swap(i,i);
         }
     }
 
@@ -52,6 +54,7 @@ program Sort {
         while (i < n) {
             a[i] = random();
             i += 1;
+
         }
     }
 
@@ -59,6 +62,7 @@ program Sort {
     int N = 10;
     int[N] a;
     initialize(a, N);
+    Sort.initialize(a,N);
     sort(a, N);
     if (isSorted(a, N)) {
         output('Y');
