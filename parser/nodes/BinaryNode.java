@@ -1,6 +1,7 @@
 package parser.nodes;
 
 import parser.ToyParser;
+import token.TokenType;
 
 //Two child nodes, left op comes first
 public class BinaryNode extends Node {

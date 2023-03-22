@@ -101,6 +101,7 @@ public class ToyParser {
         type = new TypeNode(match(TokenType.METHOD_TYPES));
         if(currentTokenIsType(TokenType.OPEN_BRACKET)){
             advanceToNextToken();
+            //TODO: Is this needed?
             type.arrSize = parseExpression();
             match(TokenType.CLOSE_BRACKET);
         }
@@ -178,6 +179,8 @@ public class ToyParser {
             expr = parseExpression();
         }else if(currentTokenIsType(TokenType.OPEN_PAREN)){
             isCall = true;
+            //skip over parenthesis
+            advanceToNextToken();
             callArgs = parseCallArgs();
         }else{
             Token postfix = parsePrefixOp();
@@ -233,11 +236,6 @@ public class ToyParser {
     }
     public LinkedList<Node> parseCallArgs()
     {
-
-        if(currentToken.type.equals(TokenType.OPEN_PAREN)){ //TODO CHECK THIS
-            advanceToNextToken();
-        }
-
         LinkedList<Node> args = parseArguments();
         match(TokenType.CLOSE_PAREN);
         return args;
@@ -254,8 +252,7 @@ public class ToyParser {
         LinkedList<Node> args = new LinkedList<>();
         while(currentTokenIsType(TokenType.COMMA)){
             advanceToNextToken();
-            Node arg = parseArgument();
-            args.addLast(arg);
+            args.addLast(parseArgument());
         }
         return args;
     }
@@ -265,10 +262,11 @@ public class ToyParser {
     }
     // Expressions
     public BinaryOp parseExpression(){
+        // TODO: Is there a way to make this generate a smaller parse tree?
         BinaryOp left = parseDisjunction();
         BinaryOp node = parseExpressionPrime();
         node.left = left;
-        if(node.right == null){ //might be wrong!
+        if(node.right == null){
             return left;
         }
         return node;
@@ -319,6 +317,9 @@ public class ToyParser {
         BinaryOp left = parseRelation();
         BinaryOp node = parseConjunctionPrime();
         node.left = left;
+        if(node.right == null){
+            return left;
+        }
         return node;
     }
 
@@ -385,15 +386,14 @@ public class ToyParser {
     public SimpleExpressionNode parseSimpleExpressionPrime(){
         //Leave sign and left null
         SimpleExpressionNode node = new SimpleExpressionNode(null,null,null,null);
-        switch (currentToken.type){
-            case PLUS:
-            case MINUS:
+        switch (currentToken.type) {
+            case PLUS, MINUS -> {
                 node.operator = parseAddOp();
                 BinaryOp leftOfRight = parseTerm();
                 SimpleExpressionNode right = parseSimpleExpressionPrime();
                 right.left = leftOfRight;
                 node.right = right;
-                break;
+            }
         }
         return node;
     }

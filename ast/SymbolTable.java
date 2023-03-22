@@ -1,5 +1,6 @@
 package ast;
 
+
 import parser.nodes.*;
 import token.Identifier;
 
@@ -8,18 +9,27 @@ import java.util.LinkedList;
 
 public class SymbolTable {
     public final SymbolTable parent;
+    public final Method associatedMethod;
     public final String name;
     private final HashMap<String, Parameter> parameters;
     private final HashMap<String, Method> methods;
     private final HashMap<String, Variable> variables;
 
     public SymbolTable(Identifier name){
-        this(name.value,null);
+        this(name.value,null,null);
         // may want a check here for main programs
         // throw new IllegalArgumentException("Not a valid main program: " + name);
     }
 
+    public SymbolTable(String name, Method associatedMethod){
+        this(name,associatedMethod, associatedMethod.getParentSymbolTable());
+    }
     public SymbolTable(String name, SymbolTable parent){
+        this(name,null,parent);
+    }
+
+    public SymbolTable(String name, Method associatedMethod, SymbolTable parent){
+        this.associatedMethod = associatedMethod;
         this.parent = parent;
         this.name = name;
         this.parameters = new HashMap<>();
@@ -32,7 +42,8 @@ public class SymbolTable {
         if(methods.containsKey(decl.name.value)){
             throw new IllegalArgumentException("Method '" + decl.name.value +  "' is already defined in this scope");
         }
-        methods.put(decl.name.value,new Method(decl,this));
+        // this.associatedMethod may be null, that's ok!
+        methods.put(decl.name.value,new Method(decl,this.associatedMethod,this));
     }
     public void add(VarDeclNode decl){
         if(variables.containsKey(decl.name.value) || parameters.containsKey(decl.name.value)){
@@ -53,23 +64,54 @@ public class SymbolTable {
             case PARAMETER -> add((ParamNode)node);
         }
     }
-
-    public boolean hasVariable(VariableNode variable) {
+    public boolean annotateSymbolTableEntry(VariableNode variable) {
         LinkedList<Identifier> variableScope = variable.scope;
         SymbolTable tempScope = this;
         if(variableScope.isEmpty()){
             while(tempScope.parent != null){
                 if(tempScope.isVariableInScope(variable.name)){
+                    tempScope.annotateVariableOrParamEntry(variable);
                     return true;
                 }
                 tempScope = tempScope.parent;
             }
+        }else {
+            tempScope = hasCorrectScope(variableScope, tempScope);
+        }
+        //Return true if the variable exists in the given scope
+        if(tempScope != null) {
+            tempScope.annotateVariableOrParamEntry(variable);
             return tempScope.isVariableInScope(variable.name);
         }
+        return false;
+    }
 
-        tempScope = hasCorrectScope(variableScope,tempScope);
-        //Return if the variable exists in the given scope
-        return tempScope != null && tempScope.isVariableInScope(variable.name);
+    private void annotateVariableOrParamEntry(VariableNode v){
+        v.symbolTableReference = this.variables.get(v.name.value);
+        if(v.symbolTableReference == null){
+            v.symbolTableReference = this.parameters.get(v.name.value);
+        }
+    }
+
+    public Method getMethod(CallNode call){
+        LinkedList<Identifier> callScope = call.scope;
+        SymbolTable tempScope = this;
+        // No defined scope, go out until variable exists
+        if(callScope.isEmpty()) {
+            while (tempScope.parent != null) {
+                if (tempScope.isMethodInScope(call.name)) {
+                    return tempScope.getMethodInScope(call.name);
+                }
+                tempScope = tempScope.parent;
+            }
+        }else{
+            // Scope is defined, go out until we find the first defined symbol table
+            tempScope = hasCorrectScope(callScope,tempScope);
+        }
+        if(tempScope == null){
+            throw new IllegalArgumentException("Method " + call.name + "is not defined in the given scope");
+        }
+        return tempScope.getMethodInScope(call.name);
     }
 
     public boolean hasMethod(CallNode call) {
@@ -79,17 +121,27 @@ public class SymbolTable {
         if(callScope.isEmpty()) {
             while (tempScope.parent != null) {
                 if (tempScope.isMethodInScope(call.name)) {
+                    tempScope.annotateMethodEntry(call);
                     return true;
                 }
                 tempScope = tempScope.parent;
             }
             return tempScope.isMethodInScope(call.name);
+        }else{
+            // Scope is defined, go out until we find the first defined symbol table
+            tempScope = hasCorrectScope(callScope,tempScope);
         }
 
-        // Scope is defined, go out until we find the first defined symbol table
-        tempScope = hasCorrectScope(callScope,tempScope);
-        //Return if the method exists in the given scope
-        return tempScope != null && tempScope.isMethodInScope(call.name);
+        if(tempScope != null){
+            //Return if the method exists in the given scope
+            tempScope.annotateMethodEntry(call);
+            return tempScope.isMethodInScope(call.name);
+        }
+        return false;
+    }
+
+    private void annotateMethodEntry(CallNode c){
+        c.symbolTableReference = methods.get(c.name.value);
     }
 
     private SymbolTable hasCorrectScope(LinkedList<Identifier> scope, SymbolTable tempScope){
@@ -129,8 +181,13 @@ public class SymbolTable {
         return variables.containsKey(name.value) || parameters.containsKey(name.value);
     }
 
-    public Method getMethod(Identifier name){
-        return methods.get(name.value);
+
+    public Method getMethodInScope(Identifier name){
+        Method m = methods.get(name.value);
+        if(m == null) {
+            throw new IllegalArgumentException("Method: " + name + "must be declared before it is called");
+        }
+        return m;
     }
 
     @Override

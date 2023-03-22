@@ -1,7 +1,5 @@
 package parser.nodes;
 
-import parser.ToyParser;
-
 public class ReturnNode extends Node {
     public Node expression;
 

@@ -1,8 +1,6 @@
 package ast.types;
 
 import parser.nodes.TypeNode;
-import token.Token;
-
 public enum ParameterTypes{
     INT,
     CHAR,

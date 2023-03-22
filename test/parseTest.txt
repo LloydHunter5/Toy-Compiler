@@ -2,8 +2,6 @@ program HelloWorld {
     int z;
     int x(int y, int[] z){
         //Do things here
-        int x = HelloWorld.z;
-        return x;
         void x (char c, char v, char[] w){
             w[0] = c;
             w[1] = v;
@@ -11,7 +9,6 @@ program HelloWorld {
         }
 
         char y (int a, int y, int z){
-            a = x + y;
             a++;
             a--;
             --a;
@@ -22,6 +19,7 @@ program HelloWorld {
                 return x(a,z,y);
             }
         }
+        return y(1,2,20);
     }
     int i = 0;
     i++;

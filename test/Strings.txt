@@ -45,5 +45,4 @@ program Strings {
     }
 
     println("Hello\0");
-    println(toUpperCase(Hello));
 }

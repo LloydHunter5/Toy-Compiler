@@ -1,5 +1,6 @@
 package parser.nodes;
 
+import ast.Variable;
 import token.Identifier;
 
 import java.util.LinkedList;
@@ -7,7 +8,6 @@ import java.util.LinkedList;
 public class VariableNode extends ScopedNode {
     //For array vars
     public IndexNode index;
-
     public VariableNode(LinkedList<Identifier> scope, Identifier name, IndexNode index){
         super(Kind.VARIABLE,name,scope);
         this.index = index;

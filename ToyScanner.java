@@ -78,9 +78,6 @@ public class ToyScanner {
                     System.out.println();
                 }
             }
-
-            testSymbolTable(testPrograms[6],false);
-
         }
     }
 
@@ -126,9 +123,6 @@ public class ToyScanner {
             }
 
             return !lexer.hasNextToken();
-
-
-
         }catch(FileNotFoundException e){
             System.err.println("file not found");
         }

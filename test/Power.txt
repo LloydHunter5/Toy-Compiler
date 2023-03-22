@@ -35,6 +35,10 @@ program Power {
         }
     }
 
+    boolean isOdd(int n){
+
+    }
+
     int power2(int x, int n) {
         if (n <= 0) {
             return 1;
@@ -45,6 +49,8 @@ program Power {
             return result;
         }
     }
+
+
 
     int i = 0;
     int n = 3;

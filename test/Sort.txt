@@ -19,7 +19,7 @@ program Sort {
             int j = 0;
             while (j < n-1-i) {
                 if (a[j+1] < a[j]) {
-                    swap(a, j, j+1);
+                    swap(j, j+1);
                     isSorted = false;
                 }
                 j += 1;

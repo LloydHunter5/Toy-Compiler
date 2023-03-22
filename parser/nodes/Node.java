@@ -1,18 +1,21 @@
 package parser.nodes;
 
-import parser.ToyParser;
-import token.Token;
-
-import java.util.LinkedList;
+import ast.SymbolTable;
+import ast.types.TypeAnnotation;
 
 public abstract class Node
 {
     public Kind kind;
+    public TypeAnnotation typeAnnotation;
+    public int row;
+    public int col;
     public Node(Kind kind){
         this.kind = kind;
     }
-    public Node castToKind(){
-        return this;
+
+    public void setPosition(int row, int col){
+        this.row = row;
+        this.col = col;
     }
 }
 //Node subclasses

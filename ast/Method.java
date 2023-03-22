@@ -1,27 +1,52 @@
 package ast;
 
+import ast.types.Kind;
 import ast.types.MethodTypes;
+import ast.types.ParameterTypes;
 import parser.nodes.DeclNode;
 import parser.nodes.MethodDecl;
 import parser.nodes.ParamNode;
-import token.Identifier;
+
+import java.util.LinkedList;
 
 public class Method extends SymbolTableEntry {
-    private MethodTypes type;
-    private SymbolTable table;
-    private final SymbolTable parent;
-    public Method(DeclNode node, SymbolTable parentScope) {
-        this.type = MethodTypes.convertType(node.type);
+    private final MethodTypes returnType;
+    // Ordered list of param types, for type analysis of method calls
+    public ParameterTypes[] parameterTypes;
+    private final SymbolTable table;
+    private final Method parentMethod;
+    private final SymbolTable parentScope;
+    public Method(DeclNode node, Method parentMethod, SymbolTable parentScope) {
+        this.kind = Kind.METHOD;
+        this.returnType = MethodTypes.convertType(node.type);
         this.name = node.name;
-        this.parent = parentScope;
-        this.table = new SymbolTable(this.name.value,parentScope);
-        for(ParamNode param : ((MethodDecl)node).params){
+        this.parentMethod = parentMethod;
+        this.parentScope = parentScope;
+        this.table = new SymbolTable(this.name.value,this,parentScope);
+        LinkedList<ParamNode> params = ((MethodDecl)node).params;
+        parameterTypes = new ParameterTypes[params.size()];
+        int i = 0;
+        for(ParamNode param : params){
+            parameterTypes[i++] = ParameterTypes.convertType(param.type);
             table.add(param);
         }
     }
 
-    public SymbolTable getParent(){
-        return parent;
+    public Method (DeclNode node, Method parentMethod){
+        this(node, parentMethod, parentMethod.getSymbolTable());
+    }
+
+    public Method (DeclNode node, SymbolTable parentScope){
+        this(node, null, parentScope);
+    }
+
+
+    public SymbolTable getParentSymbolTable(){
+        return parentScope;
+    }
+
+    public Method getParentMethod() {
+        return parentMethod;
     }
 
     public SymbolTable getSymbolTable(){
@@ -29,7 +54,7 @@ public class Method extends SymbolTableEntry {
     }
 
     public MethodTypes getReturnType(){
-        return type;
+        return returnType;
     }
 
 }
