@@ -1,8 +1,7 @@
 package ast;
 
-import ast.types.Kind;
 import ast.types.MethodTypes;
-import ast.types.ParameterTypes;
+import ast.types.VariableTypes;
 import parser.nodes.DeclNode;
 import parser.nodes.MethodDecl;
 import parser.nodes.ParamNode;
@@ -12,22 +11,21 @@ import java.util.LinkedList;
 public class Method extends SymbolTableEntry {
     private final MethodTypes returnType;
     // Ordered list of param types, for type analysis of method calls
-    public ParameterTypes[] parameterTypes;
+    public VariableTypes[] parameterTypes;
     private final SymbolTable table;
     private final Method parentMethod;
     private final SymbolTable parentScope;
     public Method(DeclNode node, Method parentMethod, SymbolTable parentScope) {
-        this.kind = Kind.METHOD;
         this.returnType = MethodTypes.convertType(node.type);
         this.name = node.name;
         this.parentMethod = parentMethod;
         this.parentScope = parentScope;
         this.table = new SymbolTable(this.name.value,this,parentScope);
         LinkedList<ParamNode> params = ((MethodDecl)node).params;
-        parameterTypes = new ParameterTypes[params.size()];
+        parameterTypes = new VariableTypes[params.size()];
         int i = 0;
         for(ParamNode param : params){
-            parameterTypes[i++] = ParameterTypes.convertType(param.type);
+            parameterTypes[i++] = VariableTypes.convertType(param.type);
             table.add(param);
         }
     }

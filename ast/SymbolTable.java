@@ -11,7 +11,6 @@ public class SymbolTable {
     public final SymbolTable parent;
     public final Method associatedMethod;
     public final String name;
-    private final HashMap<String, Parameter> parameters;
     private final HashMap<String, Method> methods;
     private final HashMap<String, Variable> variables;
 
@@ -32,7 +31,6 @@ public class SymbolTable {
         this.associatedMethod = associatedMethod;
         this.parent = parent;
         this.name = name;
-        this.parameters = new HashMap<>();
         this.methods = new HashMap<>();
         this.variables = new HashMap<>();
     }
@@ -46,7 +44,7 @@ public class SymbolTable {
         methods.put(decl.name.value,new Method(decl,this.associatedMethod,this));
     }
     public void add(VarDeclNode decl){
-        if(variables.containsKey(decl.name.value) || parameters.containsKey(decl.name.value)){
+        if(variables.containsKey(decl.name.value)){
             throw new IllegalArgumentException("Variable '" + decl.name.value +  "' is already defined in this scope");
         }
         variables.put(decl.name.value,new Variable(decl));
@@ -54,7 +52,7 @@ public class SymbolTable {
     }
 
     public void add(ParamNode param){
-        parameters.put(param.name.value,new Parameter(param));
+        variables.put(param.name.value,new Variable(param));
     }
 
     public void add(Node node){
@@ -88,9 +86,6 @@ public class SymbolTable {
 
     private void annotateVariableOrParamEntry(VariableNode v){
         v.symbolTableReference = this.variables.get(v.name.value);
-        if(v.symbolTableReference == null){
-            v.symbolTableReference = this.parameters.get(v.name.value);
-        }
     }
 
     public Method getMethod(CallNode call){
@@ -178,7 +173,7 @@ public class SymbolTable {
     }
 
     private boolean isVariableInScope(Identifier name){
-        return variables.containsKey(name.value) || parameters.containsKey(name.value);
+        return variables.containsKey(name.value);
     }
 
 
@@ -193,14 +188,6 @@ public class SymbolTable {
     @Override
     public String toString(){
         StringBuilder s = new StringBuilder("Scope: " + name + "\n");
-        s.append("\tParameters: \n");
-        for(Parameter item : parameters.values()){
-            s.append("\t")
-            .append(item.toString())
-                .append(" : ")
-                .append(item.getType())
-            .append("\n");
-        }
         s.append("\tVariables: \n");
         for(Variable item : variables.values()){
             s.append("\t")

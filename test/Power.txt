@@ -33,10 +33,11 @@ program Power {
             result *= x;
             i++;
         }
+        return result;
     }
 
     boolean isOdd(int n){
-
+        return true;
     }
 
     int power2(int x, int n) {

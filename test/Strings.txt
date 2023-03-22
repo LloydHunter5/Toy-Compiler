@@ -5,7 +5,7 @@ program Strings {
 
     char NULL = '\0';
     char NEWLINE = '\0';
-    char Hello = "Hello\0";
+    char[] Hello = "Hello\0";
 
     int length(char[] s) {
         int count = 0;
@@ -15,10 +15,10 @@ program Strings {
 
     char toUpperCase(char c) {
         if (c >= 'a' && c <= 'z') {
-            return c - 'a' + 'A';
-        } else {
-            return c;
-        }
+           return c - 'a' + 'A';
+       } else {
+           return c;
+       }
     }
 
     // void toUpperCase(char[] s) {
@@ -44,5 +44,5 @@ program Strings {
         output(NEWLINE);
     }
 
-    println("Hello\0");
+    println(Hello);
 }

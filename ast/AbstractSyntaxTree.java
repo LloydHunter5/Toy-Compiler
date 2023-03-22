@@ -1,7 +1,6 @@
 package ast;
 
 import ast.types.*;
-import ast.types.Kind;
 import parser.nodes.*;
 import token.Identifier;
 import token.Token;
@@ -41,6 +40,9 @@ public class AbstractSyntaxTree {
                 scope.add(node);
                 MethodDecl n = (MethodDecl) node;
                 visit(n.body, scope.getMethodInScope(n.name).getSymbolTable());
+                if(scope.getMethodInScope(n.name).getReturnType() != MethodTypes.VOID){
+                    // TODO: Check for return statements (waiting to create flow graph?)
+                }
             }
             case VARIABLE -> {
                 VariableNode n = (VariableNode) node;
@@ -48,12 +50,7 @@ public class AbstractSyntaxTree {
                 if(!variableExists){
                     throw new IllegalArgumentException("Variable '" + n.name + "' is not defined!");
                 }
-
-                if(n.symbolTableReference.kind == Kind.VARIABLE){
-                    n.typeAnnotation = TypeAnnotation.convertType(((Variable) n.symbolTableReference).getType());
-                }else{
-                    n.typeAnnotation = TypeAnnotation.convertType(((Parameter) n.symbolTableReference).getType());
-                }
+                n.typeAnnotation = TypeAnnotation.convertType(((Variable) n.symbolTableReference).getType());
             }
             case CALL -> {
                 CallNode n = (CallNode)node;
@@ -106,7 +103,9 @@ public class AbstractSyntaxTree {
                 visit(n.condition, scope);
                 visit(n.then, anonymousScopeThen);
                 visit(n.otherwise, anonymousScopeElse);
-                compareTypes(n.condition, TypeAnnotation.BOOL);
+                if(!checkBooleanExpression(n.condition)){
+                    throw new IllegalArgumentException("If statement conditional statement does not evaluate to boolean");
+                }
             }
             case POSTFIX_UNARY_OP -> {
                 PostfixUnaryOp n = (PostfixUnaryOp)node;
@@ -140,7 +139,7 @@ public class AbstractSyntaxTree {
             case RETURN -> {
                 ReturnNode ret = ((ReturnNode)node);
                 visit(ret.expression,scope);
-                compareTypes(ret.expression,scope.associatedMethod.getReturnType());
+                compareTypes(ret.expression, scope.associatedMethod.getReturnType());
             }
             case BLOCK -> {
                 for(Node n : ((BlockNode)node).stmts){
@@ -175,9 +174,6 @@ public class AbstractSyntaxTree {
     }
 
     private static void checkComparison(Node a, Node b){
-        checkPossibleIndexedArrayType(a);
-        checkPossibleIndexedArrayType(b);
-
         // CHAR + INT ambiguity
         if(a.typeAnnotation == TypeAnnotation.CHAR || a.typeAnnotation == TypeAnnotation.INT){
              if(b.typeAnnotation != TypeAnnotation.CHAR && b.typeAnnotation != TypeAnnotation.INT){
@@ -191,97 +187,42 @@ public class AbstractSyntaxTree {
         }
     }
 
-    private static void checkPossibleIndexedArrayType(Node a){
-        switch(a.kind){
-            case VARIABLE -> {
-                VariableNode var = (VariableNode) a;
-                switch (var.symbolTableReference.kind){
-                    case VARIABLE -> {
-                        switch (((Variable) var.symbolTableReference).getType()){
-                            case aBOOL -> {
-                                if(var.isArrayType()){
-                                    a.typeAnnotation = TypeAnnotation.BOOL;
-                                }
-                            }
-                            case aCHAR ->{
-                                if(var.isArrayType()){
-                                    a.typeAnnotation = TypeAnnotation.CHAR;
-                                }
-                            }
-                            case aINT -> {
-                                if(var.isArrayType()) {
-                                    a.typeAnnotation = TypeAnnotation.INT;
-                                }
-                            }//Var references an array, is var indexed?
-                        }
-                    }
-                    case PARAMETER -> {
-                        switch(((Parameter) var.symbolTableReference).getType()){
-                            case aBOOL -> {
-                                if(var.isArrayType()){
-                                    a.typeAnnotation = TypeAnnotation.BOOL;
-                                }
-                            }
-                            case aCHAR ->{
-                                if(var.isArrayType()){
-                                    a.typeAnnotation = TypeAnnotation.CHAR;
-                                }
-                            }
-                            case aINT -> {
-                                if(var.isArrayType()) {
-                                    a.typeAnnotation = TypeAnnotation.INT;
-                                }
-                            }//Parameter input references an array, is var indexed?
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    @Deprecated
-    private static TypeAnnotation compareTypes(Node a, TypeAnnotation b){
-        if(a.typeAnnotation != b){
-            throw new IllegalArgumentException("Type mismatch: " + a.typeAnnotation + " should be " + b);
-        }
-        return a.typeAnnotation;
-    }
-
     private static boolean checkBooleanExpression(Node a){
         return a.typeAnnotation == TypeAnnotation.BOOL;
     }
 
     private static TypeAnnotation compareTypes(Node a, MethodTypes b){
-        if(a == null && b.equals(MethodTypes.VOID)){
-            return TypeAnnotation.VOID;
+        if(a == null){
+             if(b.equals(MethodTypes.VOID)) {
+                 return TypeAnnotation.VOID;
+             }else{
+                 throw new IllegalArgumentException("Method should return " + b);
+             }
         }
         TypeAnnotation anno = TypeAnnotation.convertType(b);
-        // CHAR + INT ambiguity
-        if(a.typeAnnotation == TypeAnnotation.CHAR || a.typeAnnotation == TypeAnnotation.INT){
-            if(anno != TypeAnnotation.CHAR && anno != TypeAnnotation.INT){
-                throw new IllegalArgumentException("Type mismatch: return type " + anno + " should be " + TypeAnnotation.INT + " or " + TypeAnnotation.CHAR);
-            }
+        if(typesAreCompatible(a,anno)){
             return anno;
         }
+        throw new IllegalArgumentException("Type mismatch: return type " + anno + " can't be resolved with returned value " + a.typeAnnotation);
 
-        if(a.typeAnnotation != anno){
-            throw new IllegalArgumentException("Type mismatch: return type " + a.typeAnnotation + " should be type " + b);
-        }
-        return a.typeAnnotation;
+
     }
 
-    private static TypeAnnotation checkParameterType(Node a, ParameterTypes b){
+    private static TypeAnnotation checkParameterType(Node a, VariableTypes b){
         TypeAnnotation anno = TypeAnnotation.convertType(b);
-        if(a.typeAnnotation == TypeAnnotation.CHAR || a.typeAnnotation == TypeAnnotation.INT){
-            if(anno != TypeAnnotation.CHAR && anno != TypeAnnotation.INT){
-                throw new IllegalArgumentException("Type mismatch: return type " + anno + " should be " + TypeAnnotation.INT + " or " + TypeAnnotation.CHAR);
-            }
+        if(typesAreCompatible(a,anno)){
             return anno;
         }
-        if(a.typeAnnotation != TypeAnnotation.convertType(b)){
-            throw new IllegalArgumentException("Type mismatch: parameter type " + a + a.typeAnnotation + " should be type" + b);
+        throw new IllegalArgumentException("Type mismatch: variable type " + anno + " improperly assigned to " + a.typeAnnotation);
+
+    }
+
+    private static boolean typesAreCompatible(Node a, TypeAnnotation anno){
+        // CHAR + INT ambiguity
+        if(a.typeAnnotation == TypeAnnotation.CHAR || a.typeAnnotation == TypeAnnotation.INT){
+            return anno == TypeAnnotation.CHAR || anno == TypeAnnotation.INT;
         }
-        return a.typeAnnotation;
+        return a.typeAnnotation == anno;
     }
 
 

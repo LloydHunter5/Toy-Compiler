@@ -1,0 +1,13 @@
+program THIS_ERRORS {
+
+    // Valid things that shouldn't be
+    int[] i = 1;
+
+
+
+    // Invalid things that should be
+
+    // Things I've checked
+    int j = 'a';
+    char p = 1;
+}

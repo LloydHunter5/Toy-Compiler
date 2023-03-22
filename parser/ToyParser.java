@@ -101,8 +101,11 @@ public class ToyParser {
         type = new TypeNode(match(TokenType.METHOD_TYPES));
         if(currentTokenIsType(TokenType.OPEN_BRACKET)){
             advanceToNextToken();
-            //TODO: Is this needed?
-            type.arrSize = parseExpression();
+            type.isArrayType = true;
+            // Can define array size, or it can be implied/assigned later
+            if(!currentTokenIsType(TokenType.CLOSE_BRACKET)){
+                type.arrSize = parseExpression();
+            }
             match(TokenType.CLOSE_BRACKET);
         }
         
@@ -574,11 +577,11 @@ public class ToyParser {
     }
 
     public String locationToString(Token t){
-        return "[" + currentToken.line + ", " + currentToken.col + "]";
+        return "[" + t.line + ", " + t.col + "]";
     }
 
     public String verboseLocationToString(Token t){
-        return "[line: " + currentToken.line + ", column: " + currentToken.col + "]";
+        return "[line: " + t.line + ", column: " + t.col + "]";
     }
 
     public boolean hasNextToken(){

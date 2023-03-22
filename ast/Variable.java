@@ -1,7 +1,7 @@
 package ast;
 
-import ast.types.Kind;
 import parser.nodes.DeclNode;
+import parser.nodes.ParamNode;
 import token.Identifier;
 import ast.types.VariableTypes;
 
@@ -11,7 +11,11 @@ public class Variable extends SymbolTableEntry{
 
 
     public Variable(DeclNode node){
-        this.kind = Kind.VARIABLE;
+        this.type = VariableTypes.convertType(node.type);
+        this.name = node.name;
+    }
+
+    public Variable(ParamNode node){
         this.type = VariableTypes.convertType(node.type);
         this.name = node.name;
     }
