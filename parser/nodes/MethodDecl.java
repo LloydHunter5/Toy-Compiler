@@ -12,9 +12,6 @@ public class MethodDecl extends DeclNode {
         super(Kind.METHOD_DECL, resultType, name);
         this.params = params;
         this.body = body;
-    }
-
-    public MethodDecl(TypeNode resultType, Identifier name, BlockNode body) {
-        this(resultType, name, null, body);
+        this.setPosition(name);
     }
 }

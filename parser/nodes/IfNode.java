@@ -1,7 +1,5 @@
 package parser.nodes;
 
-import parser.ToyParser;
-
 public class IfNode extends Node {
     public Node condition; //boolean expression
     public Node then; // if x is true then:

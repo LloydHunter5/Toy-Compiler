@@ -13,5 +13,6 @@ public class AssignmentNode extends Node {
         this.var = var;
         this.assignOp = assignOp;
         this.expression = expression;
+        this.setPosition(assignOp);
     }
 }

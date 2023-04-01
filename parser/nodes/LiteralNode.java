@@ -9,5 +9,6 @@ public class LiteralNode extends LeafNode {
     public LiteralNode(Token value) {
         super(Kind.LITERAL);
         this.value = value;
+        this.setPosition(value);
     }
 }

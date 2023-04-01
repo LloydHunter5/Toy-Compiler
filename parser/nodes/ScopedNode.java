@@ -15,5 +15,6 @@ public abstract class ScopedNode extends Node{
         super(kind);
         this.scope = scope;
         this.name = name;
+        this.setPosition(name);
     }
 }

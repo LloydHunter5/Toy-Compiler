@@ -10,6 +10,7 @@ public class VarDeclNode extends DeclNode {
     public VarDeclNode(TypeNode type, Identifier name, Node expression) {
         super(Kind.DECL, type, name);
         this.expression = expression;
+        this.setPosition(name);
     }
 
     public VarDeclNode(TypeNode type, Identifier name) {

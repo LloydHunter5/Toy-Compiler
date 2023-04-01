@@ -6,8 +6,23 @@ program THIS_ERRORS {
 
 
     // Invalid things that should be
-
+    char[] a = "hello";
+    boolean b = true;
+    int x(char[] a){
+        a = THIS_ERRORS.a[1];
+        a[3] = a[1] + 12;
+        return a;
+    }
     // Things I've checked
     int j = 'a';
     char p = 1;
+
+    int[] middleWay(int[] a, int[] b) {
+      int am = a[1];
+      int bm = b[1];
+      int[2] c;
+      c[0] = am;
+      c[1] = bm;
+      return c;
+    }
 }

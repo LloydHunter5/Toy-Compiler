@@ -14,6 +14,7 @@ public class TypeNode extends Node {
         this.type = type;
         this.isArrayType = isArrayType;
         this.arrSize = arrSize;
+        this.setPosition(type);
     }
 
     public TypeNode(Token type, boolean isArrayType) {

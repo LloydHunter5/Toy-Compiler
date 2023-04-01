@@ -10,5 +10,6 @@ public abstract class DeclNode extends Node {
         super(kind);
         this.type = type;
         this.name = name;
+        this.setPosition(name);
     }
 }

@@ -12,5 +12,6 @@ public class ProgramNode extends Node {
         super(Kind.PROGRAM);
         this.name = (Identifier) name;
         this.body = body;
+        this.setPosition(name);
     }
 }

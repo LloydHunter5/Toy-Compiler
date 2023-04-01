@@ -9,5 +9,6 @@ public class PostfixUnaryOp extends SingleNode {
     public PostfixUnaryOp(Node operand, Token postfix) {
         super(Kind.POSTFIX_UNARY_OP, operand);
         this.postfix = postfix;
+        this.setPosition(postfix);
     }
 }

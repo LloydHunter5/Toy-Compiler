@@ -34,7 +34,7 @@ public class ToyParser {
     *
     *
     * Actual methods that generate the parse tree
-    * this is a recursive descent parser
+    * this is a recursive descent parser,
     * and it is LL(1) meaning it can read linearly,
     * one token at a time from the lexer
     *
@@ -53,10 +53,12 @@ public class ToyParser {
 
     public BlockNode parseBlock()
     {
-        match(TokenType.OPEN_CURL_BRACKET);
+        Token t = match(TokenType.OPEN_CURL_BRACKET);
         LinkedList<Node> stmts = parseStatements();
         match(TokenType.CLOSE_CURL_BRACKET);
-        return new BlockNode(stmts);
+        BlockNode block = new BlockNode(stmts);
+        block.setPosition(t);
+        return block;
     }
 
     public LinkedList<Node> parseStatements()
@@ -201,7 +203,7 @@ public class ToyParser {
     public IfNode parseIf()
     {
         IfNode node = new IfNode(null,null);
-        advanceToNextToken(); //if identifier
+        Token t = advanceToNextToken(); //if identifier
         match(TokenType.OPEN_PAREN);
         node.condition = parseExpression(); //should be a boolean expression
         match(TokenType.CLOSE_PAREN);
@@ -211,6 +213,7 @@ public class ToyParser {
             advanceToNextToken(); //consume else identifier
             node.otherwise = parseStatement();
         }
+        node.setPosition(t);
         return node;
     }
 
@@ -220,21 +223,24 @@ public class ToyParser {
         Node expr;
         BlockNode body;
 
-        match(TokenType.WHILE);
+        Token t = match(TokenType.WHILE);
         match(TokenType.OPEN_PAREN);
         expr = parseExpression();
         match(TokenType.CLOSE_PAREN);
         body = parseBlock();
-        return new WhileNode(expr,body);
+        WhileNode whileNode = new WhileNode(expr,body);
+        whileNode.setPosition(t);
+        return whileNode;
     }
     public ReturnNode parseReturn()
     {
         ReturnNode node = new ReturnNode();
-        match(TokenType.RETURN);
+        Token t = match(TokenType.RETURN);
         if(!currentTokenIsType(TokenType.SEMICOLON)){
             node.expression = parseExpression();
         }
         match(TokenType.SEMICOLON);
+        node.setPosition(t);
         return node;
     }
     public LinkedList<Node> parseCallArgs()
@@ -284,6 +290,7 @@ public class ToyParser {
             BinaryOp right = parseExpressionPrime();
             right.left = leftOfRight;
             node.right = right;
+            node.setPosition(node.operator);
         }
         return node;
         //Has epsilon; no error
@@ -307,6 +314,7 @@ public class ToyParser {
             BinaryOp right = parseDisjunctionPrime();
             right.left = leftOfRight;
             node.right = right;
+            node.setPosition(node.operator);
         }
         return node;
         //has epsilon
@@ -334,6 +342,7 @@ public class ToyParser {
             BinaryOp right = parseConjunctionPrime();
             right.left = leftOfRight;
             node.right = right;
+            node.setPosition(node.operator);
         }
         return node;
         //has epsilon
@@ -358,6 +367,7 @@ public class ToyParser {
         if(currentTokenIsType(TokenType.COMPARE_OPS)){
             node.operator = parseCompareOp();
             node.right = parseSimpleExpression();
+            node.setPosition(node.operator);
         }
         return node;
         //has epsilon
@@ -396,6 +406,7 @@ public class ToyParser {
                 SimpleExpressionNode right = parseSimpleExpressionPrime();
                 right.left = leftOfRight;
                 node.right = right;
+                node.setPosition(node.operator);
             }
         }
         return node;
@@ -419,6 +430,7 @@ public class ToyParser {
             BinaryOp right = parseTermPrime();
             right.left = leftOfRight;
             node.right = right;
+            node.setPosition(node.operator);
         }
         //has epsilon
         return node;
@@ -468,8 +480,9 @@ public class ToyParser {
         }
         // optional array index
         if (currentTokenIsType(TokenType.OPEN_BRACKET)) {
-            advanceToNextToken();
+            Token t = advanceToNextToken();
             variable.index = new IndexNode(parseExpression());
+            variable.index.setPosition(t);
             match(TokenType.CLOSE_BRACKET);
         }
         return variable;

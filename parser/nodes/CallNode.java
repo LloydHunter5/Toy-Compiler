@@ -10,11 +10,6 @@ public class CallNode extends ScopedNode {
     public CallNode(LinkedList<Identifier> scope,Identifier name, LinkedList<Node> args) {
         super(Kind.CALL,name,scope);
         this.args = args;
-    }
-
-    public CallNode(LinkedList<Identifier> scope) {
-        super(Kind.CALL, scope.removeLast(),scope);
-
-        this.args = null;
+        this.setPosition(name);
     }
 }

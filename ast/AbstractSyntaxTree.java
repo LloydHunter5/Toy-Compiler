@@ -6,6 +6,7 @@ import token.Identifier;
 import token.Token;
 import token.TokenType;
 
+import java.lang.reflect.Type;
 import java.util.LinkedList;
 
 public class AbstractSyntaxTree {
@@ -13,6 +14,11 @@ public class AbstractSyntaxTree {
 
     private AbstractSyntaxTree(Identifier name){
         this.root = new SymbolTable(name);
+    }
+    public static class TypeMismatchException extends IllegalArgumentException {
+        public TypeMismatchException(String m){
+            super(m);
+        }
     }
 
     public static AbstractSyntaxTree build(ProgramNode parseTreeRoot){
@@ -50,7 +56,7 @@ public class AbstractSyntaxTree {
                 if(!variableExists){
                     throw new IllegalArgumentException("Variable '" + n.name + "' is not defined!");
                 }
-                n.typeAnnotation = TypeAnnotation.convertType(((Variable) n.symbolTableReference).getType());
+                n.typeAnnotation = TypeAnnotation.convertType(((Variable) n.symbolTableReference).getType(), n.isArrayType());
             }
             case CALL -> {
                 CallNode n = (CallNode)node;
@@ -66,7 +72,7 @@ public class AbstractSyntaxTree {
                 }
                 n.typeAnnotation = TypeAnnotation.convertType(method.getReturnType());
             }
-            case BINARY_OP -> {
+            case BINARY_OP,SIMPLE_EXPRESSION -> {
                 // ANNOTATE TYPES
                 BinaryOp bop = (BinaryOp) node;
                 visit(bop.left,scope);
@@ -104,7 +110,7 @@ public class AbstractSyntaxTree {
                 visit(n.then, anonymousScopeThen);
                 visit(n.otherwise, anonymousScopeElse);
                 if(!checkBooleanExpression(n.condition)){
-                    throw new IllegalArgumentException("If statement conditional statement does not evaluate to boolean");
+                    throw new IllegalArgumentException("If statement condition does not evaluate to boolean");
                 }
             }
             case POSTFIX_UNARY_OP -> {
@@ -122,18 +128,6 @@ public class AbstractSyntaxTree {
                     n.typeAnnotation = TypeAnnotation.BOOL;
                 }else{
                     n.typeAnnotation = TypeAnnotation.INT;
-                }
-            }
-            case SIMPLE_EXPRESSION -> {
-                SimpleExpressionNode n = (SimpleExpressionNode) node;
-                visit(n.left,scope);
-                visit(n.right,scope);
-                if(n.left == null){
-                    n.typeAnnotation = n.right.typeAnnotation;
-                }else if(n.right == null){
-                    n.typeAnnotation = n.left.typeAnnotation;
-                }else {
-                    n.typeAnnotation = compareTypes(n.left, n.operator.type,n.right);
                 }
             }
             case RETURN -> {
@@ -177,13 +171,13 @@ public class AbstractSyntaxTree {
         // CHAR + INT ambiguity
         if(a.typeAnnotation == TypeAnnotation.CHAR || a.typeAnnotation == TypeAnnotation.INT){
              if(b.typeAnnotation != TypeAnnotation.CHAR && b.typeAnnotation != TypeAnnotation.INT){
-                 throw new IllegalArgumentException("Type mismatch: c" + b.typeAnnotation + " should be " + TypeAnnotation.INT + " or " + TypeAnnotation.CHAR);
+                typeMismatch(a,b);
              }
              return;
         }
 
         if(a.typeAnnotation != b.typeAnnotation){
-            throw new IllegalArgumentException("Type mismatch: e " + a.typeAnnotation + " should be " + b.typeAnnotation);
+            typeMismatch(a,b);
         }
     }
 
@@ -209,12 +203,12 @@ public class AbstractSyntaxTree {
     }
 
     private static TypeAnnotation checkParameterType(Node a, VariableTypes b){
-        TypeAnnotation anno = TypeAnnotation.convertType(b);
+        TypeAnnotation anno = TypeAnnotation.convertType(b,false);
         if(typesAreCompatible(a,anno)){
             return anno;
         }
-        throw new IllegalArgumentException("Type mismatch: variable type " + anno + " improperly assigned to " + a.typeAnnotation);
-
+        typeMismatch(a, anno);
+        return null;
     }
 
     private static boolean typesAreCompatible(Node a, TypeAnnotation anno){
@@ -225,6 +219,21 @@ public class AbstractSyntaxTree {
         return a.typeAnnotation == anno;
     }
 
+    private static void typeMismatch(Node a, Node b){
+        throw new TypeMismatchException(
+                "Type mismatch: " +
+                a.typeAnnotation + " expression at [" + a.line + ", " + a.col + "]" +
+                " conflicts with " +
+                b.typeAnnotation + " expression at [" + b.line + ", " + b.col + "]");
+    }
+
+    private static void typeMismatch(Node a, TypeAnnotation b){
+        throw new TypeMismatchException(
+                "Type mismatch: " +
+                a.typeAnnotation + " expression at [" + a.line + ", " + a.col + "]" +
+                " improperly assigned to "
+                + b);
+    }
 
     public void printContents(){
         this.root.printContents();

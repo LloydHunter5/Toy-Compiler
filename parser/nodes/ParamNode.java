@@ -12,5 +12,6 @@ public class ParamNode extends Node {
         super(Kind.PARAMETER);
         this.type = type;
         this.name = name;
+        this.setPosition(name);
     }
 }
