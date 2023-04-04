@@ -2,15 +2,12 @@ package codegen;
 
 import ast.AbstractSyntaxTree;
 import ast.Method;
-import ast.SymbolTableEntry;
 import parser.nodes.ProgramNode;
 import token.Identifier;
-import token.Token;
 import token.TokenType;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.io.PrintWriter;
 
 public class ToyGenerator {
@@ -84,11 +81,14 @@ public class ToyGenerator {
     // HELPER INSTRUCTIONS
     // ===================
     //
+
+    // load static value based on it's size
     private String loadValue(int ra, int val){
         if (val < 15) return LDQ(ra,val);
         else return LI(ra,val);
     }
 
+    // generate add instruction, depending on value size
     private String add(int r, int value){
         if (value < 15) return ADDQ(r,value);
         else{
@@ -101,6 +101,7 @@ public class ToyGenerator {
         }
     }
 
+    // generate subtract instruction, depending on the size of the value
     private String subtract(int r, int value){
         if (value < 15) return SUBQ(r,value);
         else{
@@ -113,14 +114,17 @@ public class ToyGenerator {
         }
     }
 
+    // decrement a given register
     private String increment(int r){
         return ADDQ(r,1);
     }
 
+    // increment a given register
     private String decrement(int r){
         return SUBQ(r,1);
     }
 
+    // Moves the stack pointer the specified amount of bytes
     private String moveSP(int byteDistance){
         if(byteDistance < 0){
             byteDistance *= -1;
@@ -156,6 +160,49 @@ public class ToyGenerator {
         writer.println(MULQ(10,3));
         writer.println(DIV(9,9,8));
         writer.println(DIVQ(10,3));
+        writer.println(MOD(1,2,3));
+        writer.println(MODQ(3,12));
+        writer.println(SAL(12,13,14));
+        writer.println(SLL(12,13,14));
+        writer.println(SALQ(3,2));
+        writer.println(SLLQ(5,10));
+        writer.println(SAR(7,0,2));
+        writer.println(SARQ(2,3));
+        writer.println(SLR(3,4,6));
+        writer.println(SLRQ(4,6));
+        writer.println(NOT(6,6));
+        writer.println(AND(2,4,12));
+        writer.println(ANDQ(4,3));
+        writer.println(OR(4,4,4));
+        writer.println(ORQ(2,4));
+        writer.println(XOR(5,4,1));
+        writer.println(XORQ(5,6));
+        writer.println(B(25));
+        writer.println(BEQ(23));
+        writer.println(BE(24));
+        writer.println(BZ(44));
+        writer.println(BNE(43));
+        writer.println(BNZ(53));
+        writer.println(BL(2));
+        writer.println(BLT(22));
+        writer.println(BLE(44));
+        writer.println(BG(3));
+        writer.println(BGT(1279));
+        writer.println(BGE(1209));
+        writer.println(BLTU(23));
+        writer.println(BLU(123));
+        writer.println(BC(1239));
+        writer.println(BLEU(7483));
+        writer.println(BGTU(273));
+        writer.println(BGU(349));
+        writer.println(BGEU(398));
+        writer.println(BNC(9202));
+        writer.println(JUMP(12));
+        writer.println(CALL(34));
+        writer.println(EXEC(2));
+        writer.println(RET());
+        writer.println(REGS());
+        writer.println(DUMP());
     }
 
 
@@ -166,8 +213,8 @@ public class ToyGenerator {
     // BASE INSTRUCTIONS
     // =================
     //
-    public class OversizedValueException extends IllegalArgumentException{
-        public OversizedValueException(String m){
+    public static class OversizeValueException extends IllegalArgumentException{
+        public OversizeValueException(String m){
             super(m);
         }
     }
@@ -177,12 +224,12 @@ public class ToyGenerator {
     private String MOV(int ra, int rb){return "MOV  \t" + reg(ra) + "," + reg(rb);}
     // LDQ R,value [10]
     private String LDQ(int ra, int val){
-        if(val > 15) throw new OversizedValueException("Cannot LDQ value " + val + " because it is larger than 15");
+        if(val > 15) throw new OversizeValueException("Cannot LDQ value " + val + " because it is larger than 15");
         return "LDQ  \t" + reg(ra) + "," + val;
     }
     // LI R,value [11]
     private String LI(int ra, int val){
-        if(val > 65_535) throw new OversizedValueException("Cannot LI value " + val + " because it is larger than 65,535");
+        if(val > 65_535) throw new OversizeValueException("Cannot LI value " + val + " because it is larger than 65,535");
         return "LI  \t" + reg(ra) + "," + val;
     }
 
@@ -208,13 +255,13 @@ public class ToyGenerator {
 
     // LBX R,Rx,offset [16]
     private String LBX(int ra, int rx, int offset){
-        if(offset > 15) throw new OversizedValueException("Cannot LBX because the given offset " + offset + " is larger than 15");
+        if(offset > 15) throw new OversizeValueException("Cannot LBX because the given offset " + offset + " is larger than 15");
         return "LBX  \t" + reg(ra) + "," + reg(rx) + "," + offset;
     }
 
     // STBX R, Rx, offset [17]
     private String STBX(int ra, int rx, int offset){
-        if(offset > 15) throw new OversizedValueException("Cannot STBX because the given offset " + offset + " is larger than 15");
+        if(offset > 15) throw new OversizeValueException("Cannot STBX because the given offset " + offset + " is larger than 15");
         return "STBX  \t" + reg(ra) + "," + reg(rx) + "," + offset;
     }
 
@@ -260,7 +307,7 @@ public class ToyGenerator {
 
     // CMPQ r, value [26]
     private String CMPQ(int ra, int value){
-        if(value > 15) throw new OversizedValueException("Cannot CMPQ because value " + value + " > 15");
+        if(value > 15) throw new OversizeValueException("Cannot CMPQ because value " + value + " > 15");
         return "CMPQ  \t" + reg(ra) + "," + value;
     }
 
@@ -271,7 +318,7 @@ public class ToyGenerator {
 
     // ADDQ R,value [28]
     private String ADDQ(int ra, int value){
-        if(value > 15) throw new OversizedValueException("Cannot ADDQ because value " + value + " > 15");
+        if(value > 15) throw new OversizeValueException("Cannot ADDQ because value " + value + " > 15");
         return "ADDQ  \t" + reg(ra) + "," + value;
     }
     // SUB R1,R2,Rt [29]
@@ -281,7 +328,7 @@ public class ToyGenerator {
 
     // SUBQ R,value [30]
     private String SUBQ(int ra, int value){
-        if(value > 15) throw new OversizedValueException("Cannot SUBQ because value " + value + " > 15");
+        if(value > 15) throw new OversizeValueException("Cannot SUBQ because value " + value + " > 15");
         return "SUBQ \t" + reg(ra) + "," + value;
     }
 
@@ -292,7 +339,7 @@ public class ToyGenerator {
 
     // MULQ R,value [32]
     private String MULQ(int ra, int value){
-        if(value > 15) throw new OversizedValueException("Cannot MULQ because value " + value + " > 15");
+        if(value > 15) throw new OversizeValueException("Cannot MULQ because value " + value + " > 15");
         return "MULQ \t" + reg(ra) + "," + value;
     }
 
@@ -303,9 +350,237 @@ public class ToyGenerator {
 
     // DIVQ R,value [34]
     private String DIVQ(int ra, int value){
-        if(value > 15) throw new OversizedValueException("Cannot DIVQ because value " + value + " > 15");
+        if(value > 15) throw new OversizeValueException("Cannot DIVQ because value " + value + " > 15");
         return "DIVQ \t" + reg(ra) + "," + value;
     }
+
+    // MOD R1,R2,Rt [35]
+    private String MOD(int ra, int rb, int rc){
+        return "MOD  \t" + reg(ra) + "," + reg(rb) + reg(rc);
+    }
+
+    // MODQ R1,R2,Rt [36]
+    private String MODQ(int ra, int val){
+        if(val > 15) throw new OversizeValueException("Cannot MODQ because value " + val + " > 15");
+        return "MODQ  \t" + reg(ra) + "," + val;
+    }
+
+    // SAL R1,R2,Rt [37]
+    private String SAL(int ra, int rb, int rc){
+        return "SAL  \t" + reg(ra) + "," + reg(rb) + "," + reg(rc);
+    }
+
+    // SLL R1,R2,Rt (same op as SAL) [37]
+    private String SLL(int ra, int rb, int rc){
+        return SAL(ra,rb,rc);
+    }
+
+    // SALQ R1,value [38]
+    private String SALQ(int ra, int val){
+        if(val > 15) throw new OversizeValueException("Cannot SALQ because value " + val + " > 15");
+        return "SALQ  \t" + reg(ra) + "," + val;
+    }
+    // SLLQ R1,value [38]
+    private String SLLQ(int ra, int val){
+        return SALQ(ra,val);
+    }
+
+    // SAR R1,R2,Rt [39]
+    private String SAR(int ra, int rb, int rc){
+        return "SAR  \t" + reg(ra) + "," + reg(rb) + "," + reg(rc);
+    }
+
+    // SARQ R1,R2,Rt [40]
+    private String SARQ(int ra, int val){
+        if(val > 15) throw new OversizeValueException("Cannot SARQ because value " + val + " > 15");
+        return "SARQ  \t" + reg(ra) + "," + val;
+    }
+
+    // SLR R1,R2,Rt [41]
+    private String SLR(int ra, int rb, int rc){
+        return "SLR  \t" + reg(ra) + "," + reg(rb) + "," + reg(rc);
+    }
+    // SLRQ R1,R2,Rt [42]
+    private String SLRQ(int ra, int val){
+        if(val > 15) throw new OversizeValueException("Cannot SLRQ because value " + val + " > 15");
+        return "SLRQ  \t" + reg(ra) + "," + val;
+    }
+
+    // NOT Rs,Rt [43]
+    private String NOT(int ra, int rb){
+        return "NOT  \t" + reg(ra) + "," + reg(rb);
+    }
+
+    // AND R1,R2,Rt [44]
+    private String AND(int ra, int rb, int rc){
+        return "ADD  \t" + reg(ra) + "," + reg(rb) + "," + reg(rc);
+    }
+
+    // ANDQ R,value [45]
+    private String ANDQ(int ra, int val){
+        if(val > 15) throw new OversizeValueException("Cannot ANDQ because value " + val + " > 15");
+        return "ANDQ  \t" + reg(ra) + "," + val;
+    }
+
+    // OR R1,R2,Rt [46]
+    private String OR(int ra, int rb, int rc){
+        return "OR  \t" + reg(ra) + "," + reg(rb) + "," + reg(rc);
+    }
+    // ORQ R,value [47]
+    private String ORQ(int ra, int val){
+        if(val > 15) throw new OversizeValueException("Cannot ORQ because value " + val + " > 15");
+        return "ORQ  \t" + reg(ra) + "," + val;
+    }
+
+    // XOR R1,R2,Rt [48]
+    private String XOR(int ra, int rb, int rc){
+        return "XOR  \t" + reg(ra) + "," + reg(rb) + "," + reg(rc);
+    }
+
+    // XORQ R,value [49]
+    private String XORQ(int ra, int val){
+        if(val > 15) throw new OversizeValueException("Cannot XORQ because value " + val + " > 15");
+        return "XORQ  \t" + reg(ra) + "," + val;
+    }
+
+    // B address [50]
+    private String B(int addr){
+        return "B   \t" + addr;
+    }
+
+    // BEQ address [51]
+    private String BEQ(int addr){
+        return "BEQ  \t" + addr;
+    }
+
+    // BE address [51]
+    private String BE(int addr){
+        return BEQ(addr);
+    }
+
+    // BZ address [51]
+    private String BZ(int addr){
+        return "BZ  \t" + addr;
+    }
+
+    // BNE address [52]
+    private String BNE(int addr){
+        return "BNE  \t" + addr;
+    }
+
+    // BNZ address [52]
+    private String BNZ(int addr){
+        return "BNZ  \t" + addr;
+    }
+
+    // BL address [53]
+    private String BL(int addr){
+        return BLT(addr);
+    }
+
+    // BLT address [53]
+    private String BLT(int addr){
+        return "BLT  \t" + addr;
+    }
+
+    // BLE address [54]
+    private String BLE(int addr){
+        return "BLE  \t" + addr;
+    }
+
+    // BG address [55]
+    private String BG(int addr){
+        return BGT(addr);
+    }
+
+    // BGT address [55]
+    private String BGT(int addr){
+        return "BGT  \t" + addr;
+    }
+
+    // BGE address [56]
+    private String BGE(int addr){
+        return "BGE  \t" + addr;
+    }
+
+    // BLTU address [57]
+    private String BLTU(int addr){
+        return "BLTU  \t" + addr;
+    }
+
+    // BLU address [57]
+    private String BLU(int addr){
+        return "BLU  \t" + addr;
+    }
+
+    // BC address [57]
+    private String BC(int addr){
+        return "BC  \t" + addr;
+    }
+
+    // BLEU address [58]
+    private String BLEU(int addr){
+        return "BLEU  \t" + addr;
+    }
+
+    // BGTU address [59]
+    private String BGTU(int addr){
+        return "BGTU  \t" + addr;
+    }
+
+    // BGU address [59]
+    private String BGU(int addr){
+        return BGTU(addr);
+    }
+
+    // BGEU address [60]
+    private String BGEU(int addr){
+        return "BGEU  \t" + addr;
+    }
+
+    // BNC address [60]
+    private String BNC(int addr){
+        return "BNC  \t" + addr;
+    }
+
+    // JUMP address [61]
+    private String JUMP(int addr){
+        return "JUMP  \t" + addr;
+    }
+
+    // HALT [62]
+    private String HALT(){
+        return "HALT";
+    }
+
+    // CALL address [63]
+    private String CALL(int addr){
+        return "CALL  \t" + addr;
+    }
+
+    // EXEC R [64]
+    private String EXEC(int ra){
+        return "EXEC  \t" + reg(ra);
+    }
+
+    // RET [65]
+    private String RET(){
+        return "RET";
+    }
+
+    // REGS [66]
+    private String REGS(){
+        return "REGS";
+    }
+
+    // DUMP [67]
+    private String DUMP(){
+        return "DUMP";
+    }
+
+
+
+
 
 
 
