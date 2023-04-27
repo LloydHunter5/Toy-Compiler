@@ -48,7 +48,6 @@ public class SymbolTable {
             throw new IllegalArgumentException("Variable '" + decl.name.value +  "' is already defined in this scope");
         }
         variables.put(decl.name.value,new Variable(decl));
-
     }
 
     public void add(ParamNode param){

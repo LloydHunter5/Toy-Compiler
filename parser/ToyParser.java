@@ -270,23 +270,41 @@ public class ToyParser {
        return parseExpression();
     }
     // Expressions
-    public BinaryOp parseExpression(){
-        // TODO: Is there a way to make this generate a smaller parse tree?
-        BinaryOp left = parseDisjunction();
-        BinaryOp node = parseExpressionPrime();
-        node.left = left;
-        if(node.right == null){
-            return left;
+    public Node parseExpression(){
+        // TODO: Sometimes this generates assignments, however it returns them as BinaryOps. THIS IS BAD!!!
+
+        BinaryOp disjunction = parseDisjunction();
+        VariableNode var = null;
+        // Converts any assignment statement to an assignment node
+        if(disjunction.kind == Kind.SIMPLE_EXPRESSION){
+            SimpleExpressionNode t1 = ((SimpleExpressionNode) disjunction);
+            // For example (return -c = '1') shouldn't be valid
+            if(t1.sign == null){
+                // Term
+                if(t1.left.kind == Kind.BINARY_OP){
+                    BinaryOp t2 = ((BinaryOp) t1.left);
+                    // Factor
+                    if(t2.left.kind == Kind.VARIABLE){
+                        var = ((VariableNode) t2.left);
+                    }
+                }
+            }
         }
-        return node;
+        if(currentTokenIsType(TokenType.ASSIGNMENT_OPS)){
+            Token assignOp = advanceToNextToken();
+            if(var == null) throw expected("Variable");
+            return new AssignmentNode(var,assignOp,parseExpression());
+        }
+        // Otherwise, return the disjunction
+        return disjunction;
     }
 
     public BinaryOp parseExpressionPrime(){
         BinaryOp node = new BinaryOp(null,null,null);
-        if(currentToken.type.equals(TokenType.ASSIGN)){ //TODO CHECK THIS
+        if(currentTokenIsType(TokenType.ASSIGNMENT_OPS)){ //TODO CHECK THIS
             //TERMINAL consume input
             node.operator = advanceToNextToken();
-            Node leftOfRight = parseDisjunction();
+            BinaryOp leftOfRight = parseDisjunction();
             BinaryOp right = parseExpressionPrime();
             right.left = leftOfRight;
             node.right = right;
@@ -417,9 +435,9 @@ public class ToyParser {
     }
 
     public BinaryOp parseTerm(){
-        Node right = parseFactor();
+        Node left = parseFactor();
         BinaryOp node = parseTermPrime();
-        node.right = right;
+        node.left = left;
         return node;
     }
     public BinaryOp parseTermPrime(){

@@ -6,7 +6,6 @@ import token.Identifier;
 import token.Token;
 import token.TokenType;
 
-import java.lang.reflect.Type;
 import java.util.LinkedList;
 
 public class AbstractSyntaxTree {

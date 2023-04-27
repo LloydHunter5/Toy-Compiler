@@ -2,7 +2,11 @@ package codegen;
 
 import ast.AbstractSyntaxTree;
 import ast.Method;
-import parser.nodes.ProgramNode;
+import ast.SymbolTable;
+import ast.Variable;
+import ast.types.MethodTypes;
+import ast.types.TypeAnnotation;
+import parser.nodes.*;
 import token.Identifier;
 import token.TokenType;
 
@@ -22,6 +26,8 @@ public class ToyGenerator {
     private final ProgramNode parseTreeRoot;
     private final AbstractSyntaxTree ast;
     private final PrintWriter writer;
+
+    private int methodCounter;
     private ToyGenerator(ProgramNode parseTreeRoot, AbstractSyntaxTree ast, OutMode out) throws IOException {
         allocator = new RegisterAllocator();
         this.ast = ast;
@@ -33,6 +39,7 @@ public class ToyGenerator {
         }else{
             writer = new PrintWriter(System.out);
         }
+        methodCounter = 0;
     }
 
     // ===============
@@ -62,14 +69,89 @@ public class ToyGenerator {
         writeAllBasicInstructions();
     }
 
-    private void generatePrologue(Method method){
+    // Generates a new register using the allocator
 
+    private static void visit(Node node){
+        if(node == null) return;
+        switch (node.kind){
+            case PROGRAM -> visit(((ProgramNode)node).body);
+            case DECL -> {
+
+            }
+            case PARAMETER -> {
+
+            }
+            case METHOD_DECL -> {
+                MethodDecl n = (MethodDecl) node;
+
+            }
+            case VARIABLE -> {
+                VariableNode n = (VariableNode) node;
+            }
+            case CALL -> {
+                CallNode n = (CallNode)node;
+            }
+            case BINARY_OP,SIMPLE_EXPRESSION -> {
+                // ANNOTATE TYPES
+                BinaryOp bop = (BinaryOp) node;
+                visit(bop.left);
+                visit(bop.right);
+            }
+            case ASSIGNMENT -> {
+                // ANNOTATE TYPES
+                AssignmentNode asn = (AssignmentNode) node;
+                visit(asn.var);
+                visit(asn.expression);
+            }
+            case WHILE -> {
+                // Create a scope (parent doesn't need reference to it, since the parent can't access any enclosed variables
+                WhileNode n = (WhileNode) node;
+                visit(n.conditions);
+                visit(n.then);
+            }
+            case IF -> {
+                IfNode n = (IfNode) node;
+                visit(n.condition);
+                visit(n.then);
+                visit(n.otherwise);
+            }
+            case POSTFIX_UNARY_OP -> {
+                PostfixUnaryOp n = (PostfixUnaryOp)node;
+                visit(n.child);
+
+            }
+            case PREFIX_UNARY_OP -> {
+                PrefixUnaryOp n = (PrefixUnaryOp) node;
+                visit(n.child);
+            }
+            case RETURN -> {
+                ReturnNode ret = ((ReturnNode)node);
+                visit(ret.expression);
+            }
+            case BLOCK -> {
+                for(Node n : ((BlockNode)node).stmts){
+                    visit(n);
+                }
+            }
+            case LITERAL -> {
+                LiteralNode n = (LiteralNode) node;
+            }
+        }
     }
 
-    // Generates a new register using the allocator
-    private String reg(){
-        int i = allocator.getNextFreeRegister();
-        return reg(i);
+    private int i_reg(){
+        return allocator.getNextFreeRegister();
+    }
+    // Returns a register and frees it instantly
+    // !! IT IS ASSUMED THAT IT WILL BE USED BEFORE GETTING ANY OTHER REGISTERS !!
+    private int t_reg(){
+        int r = allocator.getNextFreeRegister();
+        allocator.freeRegister(r);
+        return r;
+    }
+
+    private void free(int i){
+        allocator.freeRegister(i);
     }
 
     private String reg(int i){
@@ -77,12 +159,54 @@ public class ToyGenerator {
     }
 
     //
+    // ======================
+    // TOP LEVEL INSTRUCTIONS
+    // ======================
+    //
+    // These instructions write directly to the PrintWriter object, and often write multiple lines.
+    // Every line is printed using println, so assume each called method starts writing to a new line.
+    // Proper tabs are also done automatically
+    //
+    // Register Semantics:
+    //  R15 is the stack pointer. Don't use!!
+    //  R0 is the function return register
+    private void genPrologue(int localSize){
+        /*
+        * Things to store on the stack:
+        *   Static Link (address of the caller symbol table)
+        *   Frame Pointer (address of the symbol table caller)
+        *   Create new Frame Pointer
+        * */
+        int t_reg = i_reg();
+
+        free(t_reg);
+    }
+
+
+    private void genEpilogue(int frameSize){
+        // Increment SP by size of frame, to reclaim space
+        //TODO: Reclaim stack pointer and frame pointer
+        moveSP(frameSize);
+    }
+
+
+    //
     // ===================
     // HELPER INSTRUCTIONS
     // ===================
     //
 
-    // load static value based on it's size
+    private void w_println(String s){
+        writer.println(s);
+    }
+
+    // prints a string with a preceding tab
+    // used for writing instructions
+    private void w_tprintln(String s){
+        writer.print('\t');
+        w_println(s);
+    }
+    // load static value based on its size
     private String loadValue(int ra, int val){
         if (val < 15) return LDQ(ra,val);
         else return LI(ra,val);
@@ -125,12 +249,12 @@ public class ToyGenerator {
     }
 
     // Moves the stack pointer the specified amount of bytes
-    private String moveSP(int byteDistance){
-        if(byteDistance < 0){
-            byteDistance *= -1;
-            return subtract(SP,byteDistance);
+    private String moveSP(int distance){
+        if(distance < 0){
+            distance *= -1;
+            return subtract(SP,distance);
         }
-        return add(SP,byteDistance);
+        return add(SP,distance);
     }
 
     private void writeAllBasicInstructions(){
